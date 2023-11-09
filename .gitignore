@@ -4,3 +4,5 @@
 # nix
 .direnv/
 result
+
+db_storage/
