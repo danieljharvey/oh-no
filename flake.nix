@@ -60,15 +60,14 @@
             pkgs.rustfmt
             pkgs.llvmPackages.libclang
             pkgs.llvmPackages.clang
-            pkgs.rocksdb
+            pkgs.just
             # pkgs.rust-analyzer
           ];
 
           # Additional environment variables can be set directly
           LIBCLANG_PATH="${pkgs.llvmPackages.libclang.lib}/lib";
-          BINDGEN_EXTRA_CLANG_ARGS = "-isystem ${pkgs.llvmPackages.libclang.lib}/lib/clang/${lib.strings.getVersion clang}/include";
+          BINDGEN_EXTRA_CLANG_ARGS = "-isystem ${pkgs.llvmPackages.libclang.lib}/lib/clang/${pkgs.lib.strings.getVersion pkgs.clang}/include";
 
-          HORSES = "horses";
         };
       });
 }
