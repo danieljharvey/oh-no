@@ -13,19 +13,21 @@
   };
 
   outputs = { self, nixpkgs, crane, flake-utils, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
+    flake-utils.lib.eachDefaultSystem (localSystem:
       let
         pkgs = import nixpkgs {
-          inherit system;
+          system = localSystem;
         };
 
-        craneLib = crane.lib.${system};
+        craneLib = crane.lib.${localSystem};
         my-crate = craneLib.buildPackage {
           src = craneLib.cleanCargoSource (craneLib.path ./.);
           strictDeps = true;
 
           buildInputs = [
             pkgs.clang
+            pkgs.libclang
+
             # Add additional build inputs here
           ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
             # Additional darwin specific inputs can be set here
@@ -33,7 +35,7 @@
           ];
 
           # Additional environment variables can be set directly
-          # MY_CUSTOM_VAR = "some value";
+          #LIBCLANG_PATH = pkgs.libclang.lib + "/lib/";
         };
       in
       {
@@ -47,18 +49,26 @@
           drv = my-crate;
         };
 
-        devShells.default = craneLib.devShell {
+        devShell = craneLib.devShell {
           # Inherit inputs from checks.
-          checks = self.checks.${system};
+          checks = self.checks.${localSystem};
 
           # Additional dev-shell environment variables can be set directly
-          # MY_CUSTOM_DEVELOPMENT_VAR = "something else";
 
           # Extra inputs can be added here; cargo and rustc are provided by default.
           packages = [
             pkgs.rustfmt
-            pkgs.rust-analyzer
+            pkgs.llvmPackages.libclang
+            pkgs.llvmPackages.clang
+            pkgs.rocksdb
+            # pkgs.rust-analyzer
           ];
+
+          # Additional environment variables can be set directly
+          LIBCLANG_PATH="${pkgs.llvmPackages.libclang.lib}/lib";
+          BINDGEN_EXTRA_CLANG_ARGS = "-isystem ${pkgs.llvmPackages.libclang.lib}/lib/clang/${lib.strings.getVersion clang}/include";
+
+          HORSES = "horses";
         };
       });
 }
