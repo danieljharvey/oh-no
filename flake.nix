@@ -25,9 +25,9 @@
           strictDeps = true;
 
           buildInputs = [
-            pkgs.clang
-            pkgs.libclang
-
+            pkgs.llvmPackages.clang
+            pkgs.llvmPackages.libclang
+            pkgs.llvmPackages.libcxx
             # Add additional build inputs here
           ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
             # Additional darwin specific inputs can be set here
@@ -59,16 +59,16 @@
           packages = [
             pkgs.rustfmt
             pkgs.llvmPackages.libclang
+            pkgs.llvmPackages.libcxx
             pkgs.llvmPackages.clang
             pkgs.just
             # pkgs.rust-analyzer
           ];
 
           # Additional environment variables can be set directly
-          LIBCLANG_PATH="${pkgs.llvmPackages.libclang.lib}/lib";
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
           BINDGEN_EXTRA_CLANG_ARGS = "-isystem ${pkgs.llvmPackages.libclang.lib}/lib/clang/${pkgs.lib.strings.getVersion pkgs.clang}/include";
 
         };
       });
 }
-
