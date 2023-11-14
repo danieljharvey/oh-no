@@ -29,7 +29,60 @@ enum Expression {
     },
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug,PartialEq)]
+enum SelectError {
+    TypeError(TypeError),
+    TableNotFound(String)
+}
+
+#[derive(Debug,PartialEq)]
+enum TypeError {
+     ColumnNotFound{table_name:String,column_name:String}
+}
+
+// does this query even make sense?
+fn typecheck_select(tables: &BTreeMap<String,Table>,select:&Select)->Result<Vec<(String,ScalarType)>,TypeError> {
+    // this should already be there
+    let table = tables.get(&select.table).unwrap();
+
+    let typed_columns:Vec<(String,ScalarType)> = select.columns.iter().try_fold(Vec::new(),|mut acc, column| {
+        let res = typecheck_column(table,column)?;
+        acc.push(res);
+            Ok(acc)
+    })?;
+
+    typecheck_expression(table,&select.r#where)?;
+
+    Ok(typed_columns)
+}
+
+fn typecheck_column(table:&Table, column_name: &String) -> Result<(String,ScalarType),TypeError> {
+    match table.columns.get(column_name) {
+        Some(scalar_type) => Ok((column_name.clone(),scalar_type.clone())),
+        None => Err(TypeError::ColumnNotFound { table_name: table.name.clone(), column_name:column_name.to_string() })
+    }
+}
+
+// we don't 'learn' anything, just explode or don't
+fn typecheck_expression(table:&Table, expression: &Expression) -> Result<(),TypeError> {
+    match expression {
+        Expression::Column(column_name) => {
+            match table.columns.get(column_name) {
+                Some(_) => Ok(()),
+                None => Err(TypeError::ColumnNotFound{column_name:column_name.clone(),table_name:table.name.clone()})
+            }
+        },
+        Expression::BinaryFunction {expr_left,expr_right,..} => {
+            typecheck_expression(table,expr_left)?;
+            typecheck_expression(table,expr_right)?;
+            Ok(())
+        },
+        Expression::Const(_) => Ok(())
+    }
+}
+
+
+#[derive(Clone,Serialize, Deserialize)]
 enum ScalarType {
     String,
     Bool,
@@ -52,12 +105,35 @@ struct Insert {
     value: Value,
 }
 
-fn select(db: &DB, select: Select) -> Vec<(usize, Value)> {
+fn matches_prefix(prefix: &String, key: &[u8]) -> bool {
+        let key_string = std::str::from_utf8(&key).unwrap();
+        let key_start = &key_string.get(0..prefix.len().into()).unwrap();
+        key_start == &prefix.as_str()
+
+}
+
+fn select(db: &DB, select: Select) -> Result<Vec<(usize, Value)>,SelectError> {
+    let table = match lookup_table(&db,&select.table) {
+        Some(table) => Ok(table),
+            None => Err(SelectError::TableNotFound(select.table.clone()))
+    }?;
+
+    let mut tables = BTreeMap::new();
+    tables.insert(select.table.clone(),table);
+
+    typecheck_select(&tables,&select).map_err(SelectError::TypeError)?;
+
     let prefix = format!("data_{}_", select.table);
-    let iter = db.prefix_iterator(prefix);
+    let iter = db.prefix_iterator(prefix.clone());
     let mut results = vec![];
     for (index, item) in iter.enumerate() {
-        let (_key, value) = item.unwrap();
+        let (key, value) = item.unwrap();
+
+        // prefix_iterator chucks in things we don't want, filter them out
+        if !matches_prefix(&prefix, &key) {
+            continue;
+        }
+
         let val_string = std::str::from_utf8(&value).unwrap();
         let json = serde_json::Value::from_str(val_string).unwrap();
 
@@ -76,7 +152,7 @@ fn select(db: &DB, select: Select) -> Vec<(usize, Value)> {
             results.push((index + 1, json_value));
         }
     }
-    results
+    Ok(results)
 }
 
 fn is_true(expression: Expression) -> bool {
@@ -130,39 +206,26 @@ fn insert_table(db: &DB, table: Table) {
     let _ = db.put(key, serde_json::to_string(&table).unwrap());
 }
 
-fn lookup_table(db: &DB, table_name: String) {
-    todo!("implement me!")
+fn lookup_table(db: &DB, table_name: &String) -> Option<Table> {
+    let key = format!("table_{}", table_name);
+    let raw = db.get(key).unwrap()?;
+    let json = std::str::from_utf8(&raw).ok()?;
+    serde_json::from_str(&json).ok()?
 }
 
-#[test]
-fn test_get_users() {
-    let path = format!("./test_storage{}", rand::random::<i32>());
-    {
-        let db = DB::open_default(path.clone()).unwrap();
-        insert_test_data(&db);
-
-        let expected = vec![
-            (1, serde_json::from_str("{\"name\":\"Egg\"}").unwrap()),
-            (2, serde_json::from_str("{\"name\":\"Horse\"}").unwrap()),
-            (3, serde_json::from_str("{\"name\":\"Log\"}").unwrap()),
-        ];
-
-        assert_eq!(
-            select(
-                &db,
-                Select {
-                    table: "user".to_string(),
-                    columns: vec!["name".to_string()],
-                    r#where: empty_where()
-                }
-            ),
-            expected
-        );
-    }
-    let _ = DB::destroy(&Options::default(), path);
-}
 
 fn insert_test_data(db: &DB) {
+    let mut columns = BTreeMap::new();
+    columns.insert("age".to_string(),ScalarType::Int);
+    columns.insert("nice".to_string(),ScalarType::Bool);
+    columns.insert("name".to_string(),ScalarType::String);
+
+    insert_table(&db,
+        Table {
+            name: "user".to_string(),
+            columns
+        });
+
     insert(
         &db,
         Insert {
@@ -187,6 +250,109 @@ fn insert_test_data(db: &DB) {
             value: serde_json::from_str("{\"age\":46,\"nice\":false,\"name\":\"Log\"}").unwrap(),
         },
     );
+}
+
+
+#[test]
+fn test_missing_table() {
+    let path = format!("./test_storage{}", rand::random::<i32>());
+    {
+        let db = DB::open_default(path.clone()).unwrap();
+        insert_test_data(&db);
+
+        assert_eq!(select(
+            &db,
+            Select {
+                table: "missing".to_string(),
+                columns: vec!["name".to_string()],
+                r#where: empty_where()
+            }
+        ),
+        Err(SelectError::TableNotFound("missing".to_string())))
+    }
+    let _ = DB::destroy(&Options::default(), path);
+}
+
+#[test]
+fn test_missing_column() {
+    let path = format!("./test_storage{}", rand::random::<i32>());
+    {
+        let db = DB::open_default(path.clone()).unwrap();
+        insert_test_data(&db);
+
+        assert_eq!(select(
+            &db,
+            Select {
+                table: "user".to_string(),
+                columns: vec!["missing".to_string()],
+                r#where: empty_where()
+            }
+        ),
+        Err(SelectError::TypeError(TypeError::ColumnNotFound{
+            column_name:"missing".to_string(),
+        table_name:"user".to_string()
+
+        })))
+    }
+    let _ = DB::destroy(&Options::default(), path);
+}
+
+
+#[test]
+fn test_missing_column_in_where() {
+    let path = format!("./test_storage{}", rand::random::<i32>());
+    {
+        let db = DB::open_default(path.clone()).unwrap();
+        insert_test_data(&db);
+
+        assert_eq!(select(
+            &db,
+            Select {
+                table: "user".to_string(),
+                columns: vec![],
+                r#where:
+
+                        Expression::Column("missing".to_string())
+
+
+            }
+        ),
+        Err(SelectError::TypeError(TypeError::ColumnNotFound{
+            column_name:"missing".to_string(),
+        table_name:"user".to_string()
+
+        })))
+    }
+    let _ = DB::destroy(&Options::default(), path);
+}
+
+
+#[test]
+fn test_get_users() {
+    let path = format!("./test_storage{}", rand::random::<i32>());
+    {
+        let db = DB::open_default(path.clone()).unwrap();
+        insert_test_data(&db);
+
+        let expected = vec![
+            (1, serde_json::from_str("{\"name\":\"Egg\"}").unwrap()),
+            (2, serde_json::from_str("{\"name\":\"Horse\"}").unwrap()),
+            (3, serde_json::from_str("{\"name\":\"Log\"}").unwrap()),
+        ];
+
+        assert_eq!(
+            select(
+                &db,
+                Select {
+                    table: "user".to_string(),
+                    columns: vec!["name".to_string()],
+                    r#where: empty_where()
+                }
+            ),
+            Ok(expected)
+        );
+    }
+    let _ = DB::destroy(&Options::default(), path);
 }
 
 #[test]
@@ -217,7 +383,7 @@ fn test_get_users_where() {
                     }
                 }
             ),
-            expected
+            Ok(expected)
         );
     }
     let _ = DB::destroy(&Options::default(), path);
