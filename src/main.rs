@@ -10,10 +10,21 @@ struct Select {
     r#where: Expression,
 }
 
+#[derive(Debug, PartialEq)]
+enum Function {
+    Equals,
+    And,
+}
+
+#[derive(Debug, PartialEq)]
 enum Expression {
     Column(String),
-
     Const(serde_json::Value),
+    BinaryFunction {
+        function: Function,
+        expr_left: Box<Expression>,
+        expr_right: Box<Expression>,
+    },
 }
 
 fn empty_where() -> Expression {
@@ -28,7 +39,6 @@ struct Insert {
 
 fn select(db: &DB, select: Select) -> Vec<(usize, Value)> {
     let prefix = format!("{}_", select.table);
-    println!("Selecting {}", prefix);
     let iter = db.prefix_iterator(prefix);
     let mut results = vec![];
     for (index, item) in iter.enumerate() {
@@ -61,6 +71,10 @@ fn is_true(expression: Expression) -> bool {
     }
 }
 
+fn bool_expr(bool: bool) -> Expression {
+    Expression::Const(serde_json::Value::Bool(bool))
+}
+
 // given a row and an expression, evaluate it
 fn apply_expression(result: &serde_json::Value, expression: &Expression) -> Expression {
     match expression {
@@ -69,13 +83,31 @@ fn apply_expression(result: &serde_json::Value, expression: &Expression) -> Expr
             let inner = json_object.get(column_name).unwrap();
             Expression::Const(inner.clone())
         }
+        Expression::BinaryFunction {
+            function,
+            expr_left,
+            expr_right,
+        } => match function {
+            Function::Equals => {
+                let left2 = apply_expression(result, expr_left);
+                let right2 = apply_expression(result, expr_right);
+                bool_expr(left2 == right2)
+            }
+            Function::And => {
+                if is_true(apply_expression(result, expr_left)) {
+                    apply_expression(result, expr_right)
+                } else {
+                    bool_expr(false)
+                }
+            }
+        },
         Expression::Const(value) => Expression::Const(value.clone()),
     }
 }
 
 fn insert(db: &DB, insert: Insert) {
     let key = format!("{}_{}", insert.table, insert.key);
-    db.put(key, serde_json::to_string(&insert.value).unwrap());
+    let _ = db.put(key, serde_json::to_string(&insert.value).unwrap());
 }
 
 #[test]
@@ -83,31 +115,7 @@ fn test_get_users() {
     let path = format!("./test_storage{}", rand::random::<i32>());
     {
         let db = DB::open_default(path.clone()).unwrap();
-
-        insert(
-            &db,
-            Insert {
-                table: "user".to_string(),
-                key: 1,
-                value: serde_json::from_str("{\"nice\":false,\"name\":\"Egg\"}").unwrap(),
-            },
-        );
-        insert(
-            &db,
-            Insert {
-                table: "user".to_string(),
-                key: 2,
-                value: serde_json::from_str("{\"nice\":true,\"name\":\"Horse\"}").unwrap(),
-            },
-        );
-        insert(
-            &db,
-            Insert {
-                table: "user".to_string(),
-                key: 3,
-                value: serde_json::from_str("{\"nice\":false,\"name\":\"Log\"}").unwrap(),
-            },
-        );
+        insert_test_data(&db);
 
         let expected = vec![
             (1, serde_json::from_str("{\"name\":\"Egg\"}").unwrap()),
@@ -130,36 +138,39 @@ fn test_get_users() {
     let _ = DB::destroy(&Options::default(), path);
 }
 
+fn insert_test_data(db: &DB) {
+    insert(
+        &db,
+        Insert {
+            table: "user".to_string(),
+            key: 1,
+            value: serde_json::from_str("{\"age\":27,\"nice\":false,\"name\":\"Egg\"}").unwrap(),
+        },
+    );
+    insert(
+        &db,
+        Insert {
+            table: "user".to_string(),
+            key: 2,
+            value: serde_json::from_str("{\"age\":100,\"nice\":true,\"name\":\"Horse\"}").unwrap(),
+        },
+    );
+    insert(
+        &db,
+        Insert {
+            table: "user".to_string(),
+            key: 3,
+            value: serde_json::from_str("{\"age\":46,\"nice\":false,\"name\":\"Log\"}").unwrap(),
+        },
+    );
+}
+
 #[test]
 fn test_get_users_where() {
     let path = format!("./test_storage{}", rand::random::<i32>());
     {
         let db = DB::open_default(path.clone()).unwrap();
-
-        insert(
-            &db,
-            Insert {
-                table: "user".to_string(),
-                key: 1,
-                value: serde_json::from_str("{\"nice\":false,\"name\":\"Egg\"}").unwrap(),
-            },
-        );
-        insert(
-            &db,
-            Insert {
-                table: "user".to_string(),
-                key: 2,
-                value: serde_json::from_str("{\"nice\":true,\"name\":\"Horse\"}").unwrap(),
-            },
-        );
-        insert(
-            &db,
-            Insert {
-                table: "user".to_string(),
-                key: 3,
-                value: serde_json::from_str("{\"nice\":false,\"name\":\"Log\"}").unwrap(),
-            },
-        );
+        insert_test_data(&db);
 
         let expected = vec![(2, serde_json::from_str("{\"name\":\"Horse\"}").unwrap())];
 
@@ -169,7 +180,17 @@ fn test_get_users_where() {
                 Select {
                     table: "user".to_string(),
                     columns: vec!["name".to_string()],
-                    r#where: Expression::Column("nice".to_string())
+                    r#where: Expression::BinaryFunction {
+                        function: Function::And,
+                        expr_left: Box::new(Expression::Column("nice".to_string())),
+                        expr_right: Box::new(Expression::BinaryFunction {
+                            function: Function::Equals,
+                            expr_left: Box::new(Expression::Column("age".to_string())),
+                            expr_right: Box::new(Expression::Const(Value::Number(
+                                serde_json::Number::from(100)
+                            )))
+                        })
+                    }
                 }
             ),
             expected
