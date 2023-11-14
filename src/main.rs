@@ -1,5 +1,7 @@
 use rocksdb::{Options, DB};
+use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::BTreeMap;
 use std::str::FromStr;
 
 fn main() {}
@@ -27,6 +29,19 @@ enum Expression {
     },
 }
 
+#[derive(Serialize, Deserialize)]
+enum ScalarType {
+    String,
+    Bool,
+    Int,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Table {
+    name: String,
+    columns: BTreeMap<String, ScalarType>,
+}
+
 fn empty_where() -> Expression {
     Expression::Const(serde_json::Value::Bool(true))
 }
@@ -38,7 +53,7 @@ struct Insert {
 }
 
 fn select(db: &DB, select: Select) -> Vec<(usize, Value)> {
-    let prefix = format!("{}_", select.table);
+    let prefix = format!("data_{}_", select.table);
     let iter = db.prefix_iterator(prefix);
     let mut results = vec![];
     for (index, item) in iter.enumerate() {
@@ -106,8 +121,17 @@ fn apply_expression(result: &serde_json::Value, expression: &Expression) -> Expr
 }
 
 fn insert(db: &DB, insert: Insert) {
-    let key = format!("{}_{}", insert.table, insert.key);
+    let key = format!("data_{}_{}", insert.table, insert.key);
     let _ = db.put(key, serde_json::to_string(&insert.value).unwrap());
+}
+
+fn insert_table(db: &DB, table: Table) {
+    let key = format!("table_{}", table.name);
+    let _ = db.put(key, serde_json::to_string(&table).unwrap());
+}
+
+fn lookup_table(db: &DB, table_name: String) {
+    todo!("implement me!")
 }
 
 #[test]
