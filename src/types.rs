@@ -1,0 +1,73 @@
+use core::fmt;
+use core::fmt::Display;
+use serde_derive::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::BTreeMap;
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct TableName(pub String);
+
+impl Display for TableName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+pub struct Select {
+    pub table: TableName,
+    pub columns: Vec<String>,
+    pub r#where: Expression,
+}
+
+pub struct Insert {
+    pub table: TableName,
+    pub key: i32,
+    pub value: Value,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Function {
+    Equals,
+    And,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Expression {
+    Column(String),
+    Const(serde_json::Value),
+    BinaryFunction {
+        function: Function,
+        expr_left: Box<Expression>,
+        expr_right: Box<Expression>,
+    },
+}
+
+#[derive(Debug, PartialEq)]
+pub enum SelectError {
+    TypeError(TypeError),
+    TableNotFound(TableName),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum TypeError {
+    ColumnNotFound {
+        table_name: TableName,
+        column_name: String,
+    },
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub enum ScalarType {
+    String,
+    Bool,
+    Int,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Table {
+    pub name: String,
+    pub columns: BTreeMap<String, ScalarType>,
+}
+pub fn bool_expr(bool: bool) -> Expression {
+    Expression::Const(serde_json::Value::Bool(bool))
+}
