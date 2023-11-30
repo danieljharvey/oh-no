@@ -66,8 +66,14 @@ pub enum ScalarType {
 #[derive(Serialize, Deserialize)]
 pub struct Table {
     pub name: String,
-    pub columns: BTreeMap<String, ScalarType>,
+    pub columns: Columns,
 }
+
+#[derive(Serialize, Deserialize)]
+pub enum Columns {
+    SingleConstructor(BTreeMap<String, ScalarType>),
+}
+
 pub fn bool_expr(bool: bool) -> Expression {
     Expression::Const(serde_json::Value::Bool(bool))
 }

@@ -1,6 +1,6 @@
-use super::types::{
-    Expression, Function, Insert, ScalarType, Select, SelectError, Table, TableName, TypeError,
-};
+use super::data::lookup_table;
+use super::typecheck::typecheck_select;
+use super::types::{Expression, Function, Select, SelectError};
 use rocksdb::DB;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -8,65 +8,6 @@ use std::str::FromStr;
 
 pub fn empty_where() -> Expression {
     Expression::Const(serde_json::Value::Bool(true))
-}
-
-// does this query even make sense?
-fn typecheck_select(
-    tables: &BTreeMap<TableName, Table>,
-    select: &Select,
-) -> Result<Vec<(String, ScalarType)>, TypeError> {
-    // this should already be there
-    let table = tables.get(&select.table).unwrap();
-
-    let typed_columns: Vec<(String, ScalarType)> =
-        select
-            .columns
-            .iter()
-            .try_fold(Vec::new(), |mut acc, column| {
-                let res = typecheck_column(table, column)?;
-                acc.push(res);
-                Ok(acc)
-            })?;
-
-    typecheck_expression(table, &select.r#where)?;
-
-    Ok(typed_columns)
-}
-
-fn typecheck_column(
-    table: &Table,
-    column_name: &String,
-) -> Result<(String, ScalarType), TypeError> {
-    match table.columns.get(column_name) {
-        Some(scalar_type) => Ok((column_name.clone(), scalar_type.clone())),
-        None => Err(TypeError::ColumnNotFound {
-            table_name: TableName(table.name.clone()),
-            column_name: column_name.to_string(),
-        }),
-    }
-}
-
-// we don't 'learn' anything, just explode or don't
-fn typecheck_expression(table: &Table, expression: &Expression) -> Result<(), TypeError> {
-    match expression {
-        Expression::Column(column_name) => match table.columns.get(column_name) {
-            Some(_) => Ok(()),
-            None => Err(TypeError::ColumnNotFound {
-                column_name: column_name.clone(),
-                table_name: TableName(table.name.clone()),
-            }),
-        },
-        Expression::BinaryFunction {
-            expr_left,
-            expr_right,
-            ..
-        } => {
-            typecheck_expression(table, expr_left)?;
-            typecheck_expression(table, expr_right)?;
-            Ok(())
-        }
-        Expression::Const(_) => Ok(()),
-    }
 }
 
 fn matches_prefix(prefix: &String, key: &[u8]) -> bool {
@@ -159,30 +100,16 @@ fn apply_expression(result: &serde_json::Value, expression: &Expression) -> Expr
     }
 }
 
-pub fn insert(db: &DB, insert: Insert) {
-    let key = format!("data_{}_{}", insert.table, insert.key);
-    let _ = db.put(key, serde_json::to_string(&insert.value).unwrap());
-}
-
-pub fn insert_table(db: &DB, table: Table) {
-    let key = format!("table_{}", table.name);
-    let _ = db.put(key, serde_json::to_string(&table).unwrap());
-}
-
-fn lookup_table(db: &DB, table_name: &TableName) -> Option<Table> {
-    let key = format!("table_{}", table_name);
-    let raw = db.get(key).unwrap()?;
-    let json = std::str::from_utf8(&raw).ok()?;
-    serde_json::from_str(&json).ok()?
-}
-
 #[cfg(test)]
 mod testing {
-    use crate::query::{
-        empty_where, insert, insert_table, select, Expression, Function, Insert, ScalarType,
-        Select, SelectError, Table, TableName, TypeError, Value,
+    use super::super::data::{insert, insert_table};
+    use super::super::types::{
+        Columns, Expression, Function, Insert, ScalarType, Select, SelectError, Table, TableName,
+        TypeError,
     };
+    use super::{empty_where, select};
     use rocksdb::{Options, DB};
+    use serde_json::Value;
     use std::collections::BTreeMap;
 
     fn insert_test_data(db: &DB) {
@@ -195,7 +122,7 @@ mod testing {
             &db,
             Table {
                 name: "user".to_string(),
-                columns,
+                columns: Columns::SingleConstructor(columns),
             },
         );
 
