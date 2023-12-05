@@ -11,6 +11,7 @@ pub fn empty_where() -> Expression {
 }
 
 fn matches_prefix(prefix: &String, key: &[u8]) -> bool {
+    println!("prefix {}", prefix);
     let key_string = std::str::from_utf8(&key).unwrap();
     let key_start = &key_string.get(0..prefix.len().into()).unwrap();
     key_start == &prefix.as_str()
@@ -113,16 +114,70 @@ mod testing {
     use std::collections::BTreeMap;
 
     fn insert_test_data(db: &DB) {
-        let mut columns = BTreeMap::new();
-        columns.insert("age".to_string(), ScalarType::Int);
-        columns.insert("nice".to_string(), ScalarType::Bool);
-        columns.insert("name".to_string(), ScalarType::String);
+        insert_user_data(db);
+        // insert_pet_data(db); // this breaks users tests
+    }
+
+    fn insert_pet_data(db: &DB) {
+        let mut pet_columns = BTreeMap::new();
+        pet_columns.insert("age".to_string(), ScalarType::Int);
+        pet_columns.insert("name".to_string(), ScalarType::String);
+
+        let mut constructors = BTreeMap::new();
+        constructors.insert("cat".to_string(), pet_columns.clone());
+
+        pet_columns.insert("likes_stick".to_string(), ScalarType::Bool);
+        constructors.insert("dog".to_string(), pet_columns);
+
+        insert_table(
+            &db,
+            Table {
+                name: "pet".to_string(),
+                columns: Columns::MultipleConstructors(constructors),
+            },
+        );
+        /*
+                insert(
+                    &db,
+                    Insert {
+                        table: TableName("user".to_string()),
+                        key: 1,
+                        value: serde_json::from_str("{\"age\":27,\"nice\":false,\"name\":\"Egg\"}")
+                            .unwrap(),
+                    },
+                );
+                insert(
+                    &db,
+                    Insert {
+                        table: TableName("user".to_string()),
+                        key: 2,
+                        value: serde_json::from_str("{\"age\":100,\"nice\":true,\"name\":\"Horse\"}")
+                            .unwrap(),
+                    },
+                );
+                insert(
+                    &db,
+                    Insert {
+                        table: TableName("user".to_string()),
+                        key: 3,
+                        value: serde_json::from_str("{\"age\":46,\"nice\":false,\"name\":\"Log\"}")
+                            .unwrap(),
+                    },
+                );
+        */
+    }
+
+    fn insert_user_data(db: &DB) {
+        let mut user_columns = BTreeMap::new();
+        user_columns.insert("age".to_string(), ScalarType::Int);
+        user_columns.insert("nice".to_string(), ScalarType::Bool);
+        user_columns.insert("name".to_string(), ScalarType::String);
 
         insert_table(
             &db,
             Table {
                 name: "user".to_string(),
-                columns: Columns::SingleConstructor(columns),
+                columns: Columns::SingleConstructor(user_columns),
             },
         );
 
