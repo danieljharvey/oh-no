@@ -54,13 +54,25 @@ pub enum TypeError {
         table_name: TableName,
         column_name: String,
     },
+    ColumnMismatch {
+        table_name: TableName,
+        column_name: String,
+        left: ScalarType,
+        right: ScalarType,
+    },
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ScalarType {
     String,
     Bool,
     Int,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum Type {
+    Optional(Box<Type>),
+    ScalarType(ScalarType),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -72,6 +84,7 @@ pub struct Table {
 #[derive(Serialize, Deserialize)]
 pub enum Columns {
     SingleConstructor(BTreeMap<String, ScalarType>),
+    MultipleConstructors(BTreeMap<String, BTreeMap<String, ScalarType>>),
 }
 
 pub fn bool_expr(bool: bool) -> Expression {
