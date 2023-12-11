@@ -1,4 +1,4 @@
-use super::types::{Columns, Expression, Select, Table, TableName, Type, TypeError};
+use super::types::{Columns, SelectColumns, Expression, Select, Table, TableName, Type, TypeError};
 use std::collections::BTreeMap;
 
 pub fn empty_where() -> Expression {
@@ -13,9 +13,13 @@ pub fn typecheck_select(
     // this should already be there
     let table = tables.get(&select.table).unwrap();
 
+    let select_columns = match &select.columns {
+        SelectColumns::SelectColumns { columns } => columns,
+        SelectColumns::SelectConstructor { columns, .. } => columns
+    };
+
     let typed_columns: Vec<(String, Type)> =
-        select
-            .columns
+        select_columns
             .iter()
             .try_fold(Vec::new(), |mut acc, column| {
                 let res = typecheck_column(table, column)?;

@@ -15,8 +15,13 @@ impl Display for TableName {
 
 pub struct Select {
     pub table: TableName,
-    pub columns: Vec<String>,
+    pub columns: SelectColumns,
     pub r#where: Expression,
+}
+
+pub enum SelectColumns {
+    SelectConstructor{constructor:String,columns:Vec<String>},
+    SelectColumns{columns:Vec<String>}
 }
 
 pub struct Insert {
@@ -40,6 +45,23 @@ pub enum Expression {
         expr_left: Box<Expression>,
         expr_right: Box<Expression>,
     },
+}
+
+pub fn equals(left: Expression, right:Expression) -> Expression {
+    Expression::BinaryFunction {
+        function:Function::Equals,
+        expr_left: Box::new(left),
+        expr_right: Box::new(right)
+    }
+}
+
+
+pub fn and(left: Expression, right:Expression) -> Expression {
+    Expression::BinaryFunction {
+        function:Function::And,
+        expr_left: Box::new(left),
+        expr_right: Box::new(right)
+    }
 }
 
 #[derive(Debug, PartialEq)]
