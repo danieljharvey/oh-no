@@ -56,7 +56,7 @@ fn typecheck_column(table: &Table, column_name: &String) -> Result<(String, Type
                             column_name: "age".to_string(),
                             table_name: TableName(table.name.clone()),
                             left: first.clone(),
-                            right: this_match.clone().clone(),
+                            right: *this_match.clone()
                         })
                     } else {
                         Ok(())
