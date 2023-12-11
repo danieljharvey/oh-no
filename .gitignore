@@ -8,3 +8,4 @@ result
 db_storage/
 
 test_storage*
+.DS_Store
