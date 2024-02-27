@@ -1,38 +1,7 @@
-use super::types::{Columns, SelectColumns, Expression, Select, Table, TableName, Type, TypeError};
-use std::collections::BTreeMap;
 
-pub fn empty_where() -> Expression {
-    Expression::Const(serde_json::Value::Bool(true))
-}
+use super::super::types::{Columns, SelectColumns, Expression,  Select, Table, TableName, Type, TypeError};
 
-// does this query even make sense?
-pub fn typecheck_select(
-    tables: &BTreeMap<TableName, Table>,
-    select: &Select,
-) -> Result<Vec<(String, Type)>, TypeError> {
-    // this should already be there
-    let table = tables.get(&select.table).unwrap();
-
-    let select_columns = match &select.columns {
-        SelectColumns::SelectColumns { columns } => columns,
-        SelectColumns::SelectConstructor { columns, .. } => columns
-    };
-
-    let typed_columns: Vec<(String, Type)> =
-        select_columns
-            .iter()
-            .try_fold(Vec::new(), |mut acc, column| {
-                let res = typecheck_column(table, column)?;
-                acc.push(res);
-                Ok(acc)
-            })?;
-
-    typecheck_expression(table, &select.r#where)?;
-
-    Ok(typed_columns)
-}
-
-fn typecheck_column(table: &Table, column_name: &String) -> Result<(String, Type), TypeError> {
+pub fn typecheck_column(table: &Table, column_name: &String) -> Result<(String, Type), TypeError> {
     match &table.columns {
         Columns::SingleConstructor(columns) => match columns.get(column_name) {
             Some(scalar_type) => Ok((column_name.clone(), Type::ScalarType(scalar_type.clone()))),
@@ -81,32 +50,6 @@ fn typecheck_column(table: &Table, column_name: &String) -> Result<(String, Type
                 })
             }
         }
-    }
-}
-
-// we don't 'learn' anything, just explode or don't
-fn typecheck_expression(table: &Table, expression: &Expression) -> Result<(), TypeError> {
-    match expression {
-        Expression::Column(column_name) => match &table.columns {
-            Columns::SingleConstructor(columns) => match columns.get(column_name) {
-                Some(_) => Ok(()),
-                None => Err(TypeError::ColumnNotFound {
-                    column_name: column_name.clone(),
-                    table_name: TableName(table.name.clone()),
-                }),
-            },
-            Columns::MultipleConstructors(_) => todo!("multiple constructors"),
-        },
-        Expression::BinaryFunction {
-            expr_left,
-            expr_right,
-            ..
-        } => {
-            typecheck_expression(table, expr_left)?;
-            typecheck_expression(table, expr_right)?;
-            Ok(())
-        }
-        Expression::Const(_) => Ok(()),
     }
 }
 

@@ -72,6 +72,7 @@ pub enum SelectError {
 
 #[derive(Debug, PartialEq)]
 pub enum TypeError {
+    TableNotFound(TableName),
     ColumnNotFound {
         table_name: TableName,
         column_name: String,
@@ -82,6 +83,7 @@ pub enum TypeError {
         left: ScalarType,
         right: ScalarType,
     },
+    MissingColumnInInput { table_name: TableName, column_name: String }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

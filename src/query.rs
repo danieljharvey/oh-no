@@ -1,5 +1,5 @@
 use super::data::lookup_table;
-use super::typecheck::typecheck_select;
+use super::typecheck::select::typecheck_select;
 use super::types::{and,equals,Expression, Function, Select, SelectColumns,SelectError};
 use rocksdb::DB;
 use serde_json::Value;
