@@ -207,6 +207,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "oh-no"
+version = "0.1.0"
+dependencies = [
+ "rand",
+ "rocksdb",
+ "serde",
+ "serde_derive",
+ "serde_json",
+]
+
+[[package]]
 name = "pkg-config"
 version = "0.3.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -294,17 +305,6 @@ name = "regex-syntax"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08c74e62047bb2de4ff487b251e4a92e24f48745648451635cec7d591162d9f"
-
-[[package]]
-name = "rocks"
-version = "0.1.0"
-dependencies = [
- "rand",
- "rocksdb",
- "serde",
- "serde_derive",
- "serde_json",
-]
 
 [[package]]
 name = "rocksdb"
