@@ -20,7 +20,8 @@
         };
 
         craneLib = crane.lib.${localSystem};
-        my-crate = craneLib.buildPackage {
+
+        oh-no = craneLib.buildPackage {
           src = craneLib.cleanCargoSource (craneLib.path ./.);
           strictDeps = true;
 
@@ -28,6 +29,7 @@
             pkgs.llvmPackages.clang
             pkgs.llvmPackages.libclang
             pkgs.llvmPackages.libcxx
+            pkgs.llvmPackages.llvm
             # Add additional build inputs here
           ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
             # Additional darwin specific inputs can be set here
@@ -40,13 +42,13 @@
       in
       {
         checks = {
-          inherit my-crate;
+          inherit oh-no;
         };
 
-        packages.default = my-crate;
+        packages.default = oh-no;
 
         apps.default = flake-utils.lib.mkApp {
-          drv = my-crate;
+          drv = oh-no;
         };
 
         devShell = craneLib.devShell {
@@ -57,7 +59,6 @@
 
           # Extra inputs can be added here; cargo and rustc are provided by default.
           packages = [
-
             pkgs.rustfmt
             pkgs.llvmPackages.libclang
             pkgs.llvmPackages.libcxx
