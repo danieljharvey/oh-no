@@ -30,20 +30,22 @@
 
         src = craneLib.cleanCargoSource (craneLib.path ./.);
 
+        nativeBuildInputs = [ pkgs.llvmPackages.clang ];
+
+        buildInputs = [
+          pkgs.llvmPackages.clang
+          pkgs.llvmPackages.libclang
+          # Add additional build inputs here
+        ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
+          # Additional darwin specific inputs can be set here
+          pkgs.libiconv
+        ];
+
+
         cargoArtifacts = craneLib.buildDepsOnly {
-          inherit src;
+          inherit src nativeBuildInputs buildInputs;
+
           strictDeps = true;
-
-          nativeBuildInputs = [ pkgs.llvmPackages.clang ];
-
-          buildInputs = [
-            pkgs.llvmPackages.clang
-            pkgs.llvmPackages.libclang
-            # Add additional build inputs here
-          ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
-            # Additional darwin specific inputs can be set here
-            pkgs.libiconv
-          ];
 
           # Additional environment variables can be set directly
           LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
@@ -57,8 +59,12 @@
 
         # clippy check
         clippy = craneLib.cargoClippy {
-          inherit cargoArtifacts src;
+          inherit cargoArtifacts src nativeBuildInputs buildInputs;
           cargoClippyExtraArgs = "-- --deny warnings";
+
+          # Additional environment variables can be set directly
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+
         };
 
         oh-no = craneLib.buildPackage {
