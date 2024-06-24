@@ -67,12 +67,17 @@
           # Extra inputs can be added here; cargo and rustc are provided by default.
           packages = [
             rustToolchain
+            pkgs.llvmPackages.clang
+            pkgs.llvmPackages.libclang
 
             pkgs.rustfmt
             pkgs.just
             pkgs.rust-analyzer
 
           ];
+
+          # Additional environment variables can be set directly
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
 
         };
       });
