@@ -25,6 +25,8 @@
           src = craneLib.cleanCargoSource (craneLib.path ./.);
           strictDeps = true;
 
+          nativeBuildInputs = [ pkgs.llvmPackages.clang ];
+
           buildInputs = [
             pkgs.llvmPackages.clang
             pkgs.llvmPackages.libclang
