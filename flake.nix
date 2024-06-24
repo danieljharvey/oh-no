@@ -30,8 +30,6 @@
           buildInputs = [
             pkgs.llvmPackages.clang
             pkgs.llvmPackages.libclang
-            pkgs.llvmPackages.libcxx
-            pkgs.llvmPackages.llvm
             # Add additional build inputs here
           ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
             # Additional darwin specific inputs can be set here
