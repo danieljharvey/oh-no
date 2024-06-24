@@ -63,16 +63,9 @@
           # Extra inputs can be added here; cargo and rustc are provided by default.
           packages = [
             pkgs.rustfmt
-            pkgs.llvmPackages.libclang
-            pkgs.llvmPackages.libcxx
-            pkgs.llvmPackages.clang
             pkgs.just
             pkgs.rust-analyzer
           ];
-
-          # Additional environment variables can be set directly
-          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
-          BINDGEN_EXTRA_CLANG_ARGS = "-isystem ${pkgs.llvmPackages.libclang.lib}/lib/clang/${pkgs.lib.strings.getVersion pkgs.clang}/include";
 
         };
       });
