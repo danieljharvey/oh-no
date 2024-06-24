@@ -32,6 +32,22 @@
 
         cargoArtifacts = craneLib.buildDepsOnly {
           inherit src;
+          strictDeps = true;
+
+          nativeBuildInputs = [ pkgs.llvmPackages.clang ];
+
+          buildInputs = [
+            pkgs.llvmPackages.clang
+            pkgs.llvmPackages.libclang
+            # Add additional build inputs here
+          ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
+            # Additional darwin specific inputs can be set here
+            pkgs.libiconv
+          ];
+
+          # Additional environment variables can be set directly
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+
         };
 
         # cargo fmt check
@@ -47,18 +63,6 @@
 
         oh-no = craneLib.buildPackage {
           inherit cargoArtifacts src;
-          strictDeps = true;
-
-          nativeBuildInputs = [ pkgs.llvmPackages.clang ];
-
-          buildInputs = [
-            pkgs.llvmPackages.clang
-            pkgs.llvmPackages.libclang
-            # Add additional build inputs here
-          ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
-            # Additional darwin specific inputs can be set here
-            pkgs.libiconv
-          ];
 
           # Additional environment variables can be set directly
           LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
