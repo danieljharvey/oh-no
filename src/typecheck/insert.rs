@@ -1,4 +1,4 @@
-use super::super::types::{Columns, Insert, ScalarType, Table, TableName, TypeError};
+use super::super::types::{Columns, Insert, Table, TableName, TypeError};
 use std::collections::BTreeMap;
 
 fn get_table<'a>(
@@ -21,13 +21,13 @@ pub fn typecheck_insert(
         Columns::SingleConstructor(columns) => {
             let mut typecheck_columns = BTreeMap::new();
 
-            for (column_name, _) in columns {
-                let column_type = crate::typecheck::column::typecheck_column(table, &column_name);
+            for column_name in columns.keys() {
+                let column_type = crate::typecheck::column::typecheck_column(table, column_name);
                 typecheck_columns.insert(column_name, column_type);
             }
 
             match insert.value.as_object() {
-                Some(map) => {}
+                Some(_map) => {}
                 None => panic!("no an object"),
             }
 
@@ -37,11 +37,9 @@ pub fn typecheck_insert(
     }
 }
 
+#[cfg(test)]
 mod tests {
-
-    use super::{typecheck_insert, Insert, TableName, TypeError};
-    use serde_json::json;
-    use std::collections::BTreeMap;
+    use super::{typecheck_insert, BTreeMap, Insert, TableName, TypeError};
 
     #[test]
     fn table_doesnt_exist() {

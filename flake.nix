@@ -28,20 +28,47 @@
 
         craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
-        oh-no = craneLib.buildPackage {
-          src = craneLib.cleanCargoSource (craneLib.path ./.);
+        src = craneLib.cleanCargoSource (craneLib.path ./.);
+
+        nativeBuildInputs = [ pkgs.llvmPackages.clang ];
+
+        buildInputs = [
+          pkgs.llvmPackages.clang
+          pkgs.llvmPackages.libclang
+          # Add additional build inputs here
+        ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
+          # Additional darwin specific inputs can be set here
+          pkgs.libiconv
+        ];
+
+
+        cargoArtifacts = craneLib.buildDepsOnly {
+          inherit src nativeBuildInputs buildInputs;
+
           strictDeps = true;
 
-          nativeBuildInputs = [ pkgs.llvmPackages.clang ];
+          # Additional environment variables can be set directly
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
 
-          buildInputs = [
-            pkgs.llvmPackages.clang
-            pkgs.llvmPackages.libclang
-            # Add additional build inputs here
-          ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
-            # Additional darwin specific inputs can be set here
-            pkgs.libiconv
-          ];
+        };
+
+        # cargo fmt check
+        fmt = craneLib.cargoFmt {
+          inherit src;
+        };
+
+        # clippy check
+        clippy = craneLib.cargoClippy {
+          inherit cargoArtifacts src nativeBuildInputs buildInputs;
+          cargoClippyExtraArgs = "-- --deny warnings";
+
+          # Additional environment variables can be set directly
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+
+        };
+
+        oh-no = craneLib.buildPackage {
+          inherit cargoArtifacts src;
 
           # Additional environment variables can be set directly
           LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
@@ -49,7 +76,7 @@
       in
       {
         checks = {
-          inherit oh-no;
+          inherit oh-no clippy fmt;
         };
 
         packages.default = oh-no;
@@ -67,12 +94,17 @@
           # Extra inputs can be added here; cargo and rustc are provided by default.
           packages = [
             rustToolchain
+            pkgs.llvmPackages.clang
+            pkgs.llvmPackages.libclang
 
             pkgs.rustfmt
             pkgs.just
             pkgs.rust-analyzer
 
           ];
+
+          # Additional environment variables can be set directly
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
 
         };
       });

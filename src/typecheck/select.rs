@@ -1,7 +1,8 @@
-
-use super::super::types::{Columns, SelectColumns, Expression,  Select, Table, TableName, Type, TypeError};
-use std::collections::BTreeMap;
+use super::super::types::{
+    Columns, Expression, Select, SelectColumns, Table, TableName, Type, TypeError,
+};
 use super::column::typecheck_column;
+use std::collections::BTreeMap;
 
 pub fn empty_where() -> Expression {
     Expression::Const(serde_json::Value::Bool(true))
@@ -17,7 +18,7 @@ pub fn typecheck_select(
 
     let select_columns = match &select.columns {
         SelectColumns::SelectColumns { columns } => columns,
-        SelectColumns::SelectConstructor { columns, .. } => columns
+        SelectColumns::SelectConstructor { columns, .. } => columns,
     };
 
     let typed_columns: Vec<(String, Type)> =
@@ -59,4 +60,3 @@ fn typecheck_expression(table: &Table, expression: &Expression) -> Result<(), Ty
         Expression::Const(_) => Ok(()),
     }
 }
-

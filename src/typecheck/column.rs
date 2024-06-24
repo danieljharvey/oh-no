@@ -1,6 +1,4 @@
-use super::super::types::{
-    Columns, Expression, Select, SelectColumns, Table, TableName, Type, TypeError,
-};
+use super::super::types::{Columns, Table, TableName, Type, TypeError};
 
 pub fn typecheck_column(table: &Table, column_name: &String) -> Result<(String, Type), TypeError> {
     println!("typecheck_column {table:?}: {column_name:?}");
@@ -20,7 +18,7 @@ pub fn typecheck_column(table: &Table, column_name: &String) -> Result<(String, 
 
             if let Some(first) = matches.pop() {
                 // compare the rest to the first
-                let _ = for this_match in matches.iter() {
+                for this_match in matches.iter() {
                     if this_match != &first {
                         // throw error, different types
                         Err(TypeError::ColumnMismatch {
@@ -32,7 +30,7 @@ pub fn typecheck_column(table: &Table, column_name: &String) -> Result<(String, 
                     } else {
                         Ok(())
                     }?;
-                };
+                }
                 // how many constructors contain this column?
                 if (matches.len() + 1) < constructors.len() {
                     // not all of them - it's Option<first>
@@ -55,7 +53,7 @@ pub fn typecheck_column(table: &Table, column_name: &String) -> Result<(String, 
     }
 }
 
-#[cfg(tests)]
+#[cfg(test)]
 mod tests {
     use super::typecheck_column;
     use crate::types::{Columns, ScalarType, Table, TableName, Type, TypeError};

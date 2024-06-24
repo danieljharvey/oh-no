@@ -17,5 +17,5 @@ pub fn lookup_table(db: &DB, table_name: &TableName) -> Option<Table> {
     let key = format!("table_{}", table_name);
     let raw = db.get(key).unwrap()?;
     let json = std::str::from_utf8(&raw).ok()?;
-    serde_json::from_str(&json).ok()?
+    serde_json::from_str(json).ok()?
 }
