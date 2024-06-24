@@ -26,7 +26,7 @@ jobs:
 
       - uses: cachix/cachix-action@v14
         with:
-          name: wasm-calc
+          name: oh-no
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
 
       - name: Build Nix stuff
