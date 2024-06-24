@@ -40,7 +40,6 @@
 
           # Additional environment variables can be set directly
           LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
-          BINDGEN_EXTRA_CLANG_ARGS = "-isystem ${pkgs.llvmPackages.libclang.lib}/lib/clang/${pkgs.lib.strings.getVersion pkgs.clang}/include";
         };
       in
       {
