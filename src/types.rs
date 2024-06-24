@@ -19,11 +19,18 @@ pub struct Select {
     pub r#where: Expression,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum SelectColumns {
-    SelectConstructor{constructor:String,columns:Vec<String>},
-    SelectColumns{columns:Vec<String>}
+    SelectConstructor {
+        constructor: String,
+        columns: Vec<String>,
+    },
+    SelectColumns {
+        columns: Vec<String>,
+    },
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Insert {
     pub table: TableName,
     pub key: i32,
@@ -47,20 +54,19 @@ pub enum Expression {
     },
 }
 
-pub fn equals(left: Expression, right:Expression) -> Expression {
+pub fn equals(left: Expression, right: Expression) -> Expression {
     Expression::BinaryFunction {
-        function:Function::Equals,
+        function: Function::Equals,
         expr_left: Box::new(left),
-        expr_right: Box::new(right)
+        expr_right: Box::new(right),
     }
 }
 
-
-pub fn and(left: Expression, right:Expression) -> Expression {
+pub fn and(left: Expression, right: Expression) -> Expression {
     Expression::BinaryFunction {
-        function:Function::And,
+        function: Function::And,
         expr_left: Box::new(left),
-        expr_right: Box::new(right)
+        expr_right: Box::new(right),
     }
 }
 
@@ -83,7 +89,10 @@ pub enum TypeError {
         left: ScalarType,
         right: ScalarType,
     },
-    MissingColumnInInput { table_name: TableName, column_name: String }
+    MissingColumnInInput {
+        table_name: TableName,
+        column_name: String,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -99,13 +108,13 @@ pub enum Type {
     ScalarType(ScalarType),
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Table {
     pub name: String,
     pub columns: Columns,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum Columns {
     SingleConstructor(BTreeMap<String, ScalarType>),
     MultipleConstructors(BTreeMap<String, BTreeMap<String, ScalarType>>),

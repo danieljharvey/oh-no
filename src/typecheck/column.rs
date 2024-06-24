@@ -1,7 +1,9 @@
-
-use super::super::types::{Columns, SelectColumns, Expression,  Select, Table, TableName, Type, TypeError};
+use super::super::types::{
+    Columns, Expression, Select, SelectColumns, Table, TableName, Type, TypeError,
+};
 
 pub fn typecheck_column(table: &Table, column_name: &String) -> Result<(String, Type), TypeError> {
+    println!("typecheck_column {table:?}: {column_name:?}");
     match &table.columns {
         Columns::SingleConstructor(columns) => match columns.get(column_name) {
             Some(scalar_type) => Ok((column_name.clone(), Type::ScalarType(scalar_type.clone()))),
@@ -25,7 +27,7 @@ pub fn typecheck_column(table: &Table, column_name: &String) -> Result<(String, 
                             column_name: "age".to_string(),
                             table_name: TableName(table.name.clone()),
                             left: first.clone(),
-                            right: (*this_match).clone()
+                            right: (*this_match).clone(),
                         })
                     } else {
                         Ok(())

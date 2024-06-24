@@ -57,12 +57,13 @@
 
           # Extra inputs can be added here; cargo and rustc are provided by default.
           packages = [
+
             pkgs.rustfmt
             pkgs.llvmPackages.libclang
             pkgs.llvmPackages.libcxx
             pkgs.llvmPackages.clang
             pkgs.just
-            # pkgs.rust-analyzer
+            pkgs.rust-analyzer
           ];
 
           # Additional environment variables can be set directly
