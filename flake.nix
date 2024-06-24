@@ -35,7 +35,7 @@
           ];
 
           # Additional environment variables can be set directly
-          #LIBCLANG_PATH = pkgs.libclang.lib + "/lib/";
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
         };
       in
       {
