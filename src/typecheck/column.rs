@@ -1,5 +1,5 @@
 use super::super::types::{
-    Columns, Expression, Select, SelectColumns, Table, TableName, Type, TypeError,
+    Columns, Table, TableName, Type, TypeError,
 };
 
 pub fn typecheck_column(table: &Table, column_name: &String) -> Result<(String, Type), TypeError> {

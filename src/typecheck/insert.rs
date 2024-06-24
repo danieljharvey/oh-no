@@ -1,4 +1,4 @@
-use super::super::types::{Columns, Insert, ScalarType, Table, TableName, TypeError};
+use super::super::types::{Columns, Insert, Table, TableName, TypeError};
 use std::collections::BTreeMap;
 
 fn get_table<'a>(
@@ -27,7 +27,7 @@ pub fn typecheck_insert(
             }
 
             match insert.value.as_object() {
-                Some(map) => {}
+                Some(_map) => {}
                 None => panic!("no an object"),
             }
 
@@ -37,11 +37,9 @@ pub fn typecheck_insert(
     }
 }
 
+#[cfg(test)]
 mod tests {
-
-    use super::{typecheck_insert, Insert, TableName, TypeError};
-    use serde_json::json;
-    use std::collections::BTreeMap;
+    use super::{typecheck_insert, BTreeMap, Insert, TableName, TypeError};
 
     #[test]
     fn table_doesnt_exist() {
