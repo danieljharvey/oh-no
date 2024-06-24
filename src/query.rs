@@ -1,6 +1,6 @@
 use super::data::lookup_table;
 use super::typecheck::select::typecheck_select;
-use super::types::{and,equals,Expression, Function, Select, SelectColumns,SelectError};
+use super::types::{and, equals, Expression, Function, Select, SelectColumns, SelectError};
 use rocksdb::DB;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -10,34 +10,42 @@ pub fn empty_where() -> Expression {
     Expression::Const(serde_json::Value::Bool(true))
 }
 
-fn matches_prefix(prefix: &String, key: &[u8]) -> bool {
-    let key_string = std::str::from_utf8(&key).unwrap();
+fn matches_prefix(prefix: &str, key: &[u8]) -> bool {
+    let key_string = std::str::from_utf8(key).unwrap();
     let prefix_len = prefix.len();
     // only do check if key is longer than prefix
     if prefix_len < key_string.len() {
-        let key_start = &key_string.get(0..prefix.len().into()).unwrap();
-        key_start == &prefix.as_str()
+        let key_start = &key_string.get(0..prefix.len()).unwrap();
+        key_start == &prefix
     } else {
         false
     }
 }
 
-fn add_constructor_to_expression(columns:SelectColumns,r#where: Expression ) -> (Expression,Vec<String>) {
-        match columns {
-            SelectColumns::SelectColumns { columns } =>
-                    (r#where,columns),
-            SelectColumns::SelectConstructor { constructor, columns } => {
-                (and(r#where,
-                            equals(Expression::Column("_type".to_string()),
-                                Expression::Const(serde_json::Value::String(constructor.clone())))
-                    ),columns)
-            }
-        }
+fn add_constructor_to_expression(
+    columns: SelectColumns,
+    r#where: Expression,
+) -> (Expression, Vec<String>) {
+    match columns {
+        SelectColumns::SelectColumns { columns } => (r#where, columns),
+        SelectColumns::SelectConstructor {
+            constructor,
+            columns,
+        } => (
+            and(
+                r#where,
+                equals(
+                    Expression::Column("_type".to_string()),
+                    Expression::Const(serde_json::Value::String(constructor.clone())),
+                ),
+            ),
+            columns,
+        ),
+    }
 }
 
-
 pub fn select(db: &DB, select: Select) -> Result<Vec<(usize, Value)>, SelectError> {
-    let table = match lookup_table(&db, &select.table) {
+    let table = match lookup_table(db, &select.table) {
         Some(table) => Ok(table),
         None => Err(SelectError::TableNotFound(select.table.clone())),
     }?;
@@ -52,8 +60,7 @@ pub fn select(db: &DB, select: Select) -> Result<Vec<(usize, Value)>, SelectErro
     let mut results = vec![];
 
     // if we are using a constructor to match, add it to where clause
-    let (expression, columns) =
-      add_constructor_to_expression(select.columns, select.r#where);
+    let (expression, columns) = add_constructor_to_expression(select.columns, select.r#where);
 
     for (index, item) in iter.enumerate() {
         let (key, value) = item.unwrap();
@@ -66,7 +73,7 @@ pub fn select(db: &DB, select: Select) -> Result<Vec<(usize, Value)>, SelectErro
         let val_string = std::str::from_utf8(&value).unwrap();
         let json = serde_json::Value::from_str(val_string).unwrap();
 
-        if is_true(apply_expression(&json,&expression)) {
+        if is_true(apply_expression(&json, &expression)) {
             let json_object = json.as_object().unwrap();
             // collect only the columns we care about
             let mut output = serde_json::Map::new();
@@ -75,7 +82,7 @@ pub fn select(db: &DB, select: Select) -> Result<Vec<(usize, Value)>, SelectErro
             for column in &columns {
                 // if we can't find the value, return `null`
                 // the typechecker should have worked out if this should happen or not
-                let item = json_object.get(column).map(|a|a.clone()).unwrap_or(Value::Null);
+                let item = json_object.get(column).cloned().unwrap_or(Value::Null);
                 output.insert(column.clone(), item);
             }
 
@@ -88,10 +95,7 @@ pub fn select(db: &DB, select: Select) -> Result<Vec<(usize, Value)>, SelectErro
 }
 
 fn is_true(expression: Expression) -> bool {
-    match expression {
-        Expression::Const(serde_json::Value::Bool(true)) => true,
-        _ => false,
-    }
+    matches!(expression, Expression::Const(serde_json::Value::Bool(true)))
 }
 
 fn bool_expr(bool: bool) -> Expression {
@@ -132,8 +136,8 @@ fn apply_expression(result: &serde_json::Value, expression: &Expression) -> Expr
 mod testing {
     use super::super::data::{insert, insert_table};
     use super::super::types::{
-        Columns, Expression,  Insert, ScalarType, Select, SelectError, Table, TableName,
-        TypeError,SelectColumns,and,equals
+        and, equals, Columns, Expression, Insert, ScalarType, Select, SelectColumns, SelectError,
+        Table, TableName, TypeError,
     };
     use super::{empty_where, select};
     use rocksdb::{Options, DB};
@@ -164,26 +168,27 @@ mod testing {
                 columns: Columns::MultipleConstructors(constructors),
             },
         );
-                insert(
-                    &db,
-                    Insert {
-                        table: TableName("pet".to_string()),
-                        key: 1,
-                        value: serde_json::from_str("{\"_type\":\"cat\",\"age\":27,\"name\":\"Mr Cat\"}")
-                            .unwrap(),
-                    },
-                );
+        insert(
+            &db,
+            Insert {
+                table: TableName("pet".to_string()),
+                key: 1,
+                value: serde_json::from_str("{\"_type\":\"cat\",\"age\":27,\"name\":\"Mr Cat\"}")
+                    .unwrap(),
+            },
+        );
 
-       insert(
-                    &db,
-                    Insert {
-                        table: TableName("pet".to_string()),
-                        key: 2,
-                        value: serde_json::from_str("{\"_type\":\"dog\",\"age\":21,\"name\":\"Mr Dog\",\"likes_stick\":true}")
-                            .unwrap(),
-                    },
-                );
-
+        insert(
+            &db,
+            Insert {
+                table: TableName("pet".to_string()),
+                key: 2,
+                value: serde_json::from_str(
+                    "{\"_type\":\"dog\",\"age\":21,\"name\":\"Mr Dog\",\"likes_stick\":true}",
+                )
+                .unwrap(),
+            },
+        );
     }
 
     fn insert_user_data(db: &DB) {
@@ -241,7 +246,9 @@ mod testing {
                     &db,
                     Select {
                         table: TableName("missing".to_string()),
-                        columns: SelectColumns::SelectColumns{columns:vec!["name".to_string()]},
+                        columns: SelectColumns::SelectColumns {
+                            columns: vec!["name".to_string()]
+                        },
                         r#where: empty_where()
                     }
                 ),
@@ -263,7 +270,9 @@ mod testing {
                     &db,
                     Select {
                         table: TableName("user".to_string()),
-                        columns: SelectColumns::SelectColumns{columns:vec!["missing".to_string()]},
+                        columns: SelectColumns::SelectColumns {
+                            columns: vec!["missing".to_string()]
+                        },
                         r#where: empty_where()
                     }
                 ),
@@ -288,7 +297,7 @@ mod testing {
                     &db,
                     Select {
                         table: TableName("user".to_string()),
-                        columns: SelectColumns::SelectColumns{columns:vec![]},
+                        columns: SelectColumns::SelectColumns { columns: vec![] },
                         r#where: Expression::Column("missing".to_string())
                     }
                 ),
@@ -319,7 +328,9 @@ mod testing {
                     &db,
                     Select {
                         table: TableName("user".to_string()),
-                        columns: SelectColumns::SelectColumns { columns:vec!["name".to_string()]},
+                        columns: SelectColumns::SelectColumns {
+                            columns: vec!["name".to_string()]
+                        },
                         r#where: empty_where()
                     }
                 ),
@@ -343,14 +354,16 @@ mod testing {
                     &db,
                     Select {
                         table: TableName("user".to_string()),
-                        columns: SelectColumns::SelectColumns{  columns:vec!["name".to_string()]},
-                        r#where: and(Expression::Column("nice".to_string()),
-                                    equals(Expression::Column("age".to_string()),
-Expression::Const(Value::Number(
-                                    serde_json::Number::from(100)
-                                ))))
-
-
+                        columns: SelectColumns::SelectColumns {
+                            columns: vec!["name".to_string()]
+                        },
+                        r#where: and(
+                            Expression::Column("nice".to_string()),
+                            equals(
+                                Expression::Column("age".to_string()),
+                                Expression::Const(Value::Number(serde_json::Number::from(100)))
+                            )
+                        )
                     }
                 ),
                 Ok(expected)
@@ -366,17 +379,20 @@ Expression::Const(Value::Number(
             let db = DB::open_default(path.clone()).unwrap();
             insert_test_data(&db);
 
-            let expected = vec![
-                (1, serde_json::from_str("{\"age\":27,\"name\":\"Mr Cat\"}").unwrap())
-            ];
+            let expected = vec![(
+                1,
+                serde_json::from_str("{\"age\":27,\"name\":\"Mr Cat\"}").unwrap(),
+            )];
 
             assert_eq!(
                 select(
                     &db,
                     Select {
                         table: TableName("pet".to_string()),
-                        columns: SelectColumns::SelectConstructor { constructor: "cat".to_string(),
-                                        columns:vec!["age".to_string(),"name".to_string()]},
+                        columns: SelectColumns::SelectConstructor {
+                            constructor: "cat".to_string(),
+                            columns: vec!["age".to_string(), "name".to_string()]
+                        },
                         r#where: empty_where()
                     }
                 ),
@@ -394,9 +410,14 @@ Expression::Const(Value::Number(
             insert_test_data(&db);
 
             let expected = vec![
-                (1, serde_json::from_str("{\"age\":27,\"name\":\"Mr Cat\"}").unwrap()),
-                (2, serde_json::from_str("{\"age\":21,\"name\":\"Mr Dog\"}").unwrap())
-
+                (
+                    1,
+                    serde_json::from_str("{\"age\":27,\"name\":\"Mr Cat\"}").unwrap(),
+                ),
+                (
+                    2,
+                    serde_json::from_str("{\"age\":21,\"name\":\"Mr Dog\"}").unwrap(),
+                ),
             ];
 
             assert_eq!(
@@ -405,7 +426,8 @@ Expression::Const(Value::Number(
                     Select {
                         table: TableName("pet".to_string()),
                         columns: SelectColumns::SelectColumns {
-                                        columns:vec!["age".to_string(),"name".to_string()]},
+                            columns: vec!["age".to_string(), "name".to_string()]
+                        },
                         r#where: empty_where()
                     }
                 ),
@@ -423,9 +445,16 @@ Expression::Const(Value::Number(
             insert_test_data(&db);
 
             let expected = vec![
-                (1, serde_json::from_str("{\"age\":27,\"name\":\"Mr Cat\", \"likes_stick\":null}").unwrap()),
-                (2, serde_json::from_str("{\"age\":21,\"name\":\"Mr Dog\", \"likes_stick\": true}").unwrap())
-
+                (
+                    1,
+                    serde_json::from_str("{\"age\":27,\"name\":\"Mr Cat\", \"likes_stick\":null}")
+                        .unwrap(),
+                ),
+                (
+                    2,
+                    serde_json::from_str("{\"age\":21,\"name\":\"Mr Dog\", \"likes_stick\": true}")
+                        .unwrap(),
+                ),
             ];
 
             assert_eq!(
@@ -434,8 +463,12 @@ Expression::Const(Value::Number(
                     Select {
                         table: TableName("pet".to_string()),
                         columns: SelectColumns::SelectColumns {
-                                        columns:vec!["age".to_string(),"name".to_string(),
-                                                "likes_stick".to_string()]},
+                            columns: vec![
+                                "age".to_string(),
+                                "name".to_string(),
+                                "likes_stick".to_string()
+                            ]
+                        },
                         r#where: empty_where()
                     }
                 ),
@@ -444,7 +477,4 @@ Expression::Const(Value::Number(
         }
         let _ = DB::destroy(&Options::default(), path);
     }
-
-
-
 }

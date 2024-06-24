@@ -21,8 +21,8 @@ pub fn typecheck_insert(
         Columns::SingleConstructor(columns) => {
             let mut typecheck_columns = BTreeMap::new();
 
-            for (column_name, _) in columns {
-                let column_type = crate::typecheck::column::typecheck_column(table, &column_name);
+            for column_name in columns.keys() {
+                let column_type = crate::typecheck::column::typecheck_column(table, column_name);
                 typecheck_columns.insert(column_name, column_type);
             }
 
