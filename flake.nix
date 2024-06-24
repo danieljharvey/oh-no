@@ -28,8 +28,25 @@
 
         craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
+        src = craneLib.cleanCargoSource (craneLib.path ./.);
+
+        cargoArtifacts = craneLib.buildDepsOnly {
+          inherit src;
+        };
+
+        # cargo fmt check
+        fmt = craneLib.cargoFmt {
+          inherit src;
+        };
+
+        # clippy check
+        clippy = craneLib.cargoClippy {
+          inherit cargoArtifacts src;
+          cargoClippyExtraArgs = "-- --deny warnings";
+        };
+
         oh-no = craneLib.buildPackage {
-          src = craneLib.cleanCargoSource (craneLib.path ./.);
+          inherit cargoArtifacts src;
           strictDeps = true;
 
           nativeBuildInputs = [ pkgs.llvmPackages.clang ];
@@ -49,7 +66,7 @@
       in
       {
         checks = {
-          inherit oh-no;
+          inherit oh-no clippy fmt;
         };
 
         packages.default = oh-no;
