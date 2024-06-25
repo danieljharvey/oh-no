@@ -4,10 +4,19 @@ use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, Hash, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TableName(pub String);
 
 impl Display for TableName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Serialize, Deserialize, Hash, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ColumnName(pub String);
+
+impl Display for ColumnName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -23,10 +32,10 @@ pub struct Select {
 pub enum SelectColumns {
     SelectConstructor {
         constructor: String,
-        columns: Vec<String>,
+        columns: Vec<ColumnName>,
     },
     SelectColumns {
-        columns: Vec<String>,
+        columns: Vec<ColumnName>,
     },
 }
 
@@ -34,7 +43,7 @@ pub enum SelectColumns {
 pub struct Insert {
     pub table: TableName,
     pub key: i32,
-    pub value: Value,
+    pub value: BTreeMap<ColumnName, Value>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -45,7 +54,7 @@ pub enum Function {
 
 #[derive(Debug, PartialEq)]
 pub enum Expression {
-    Column(String),
+    Column(ColumnName),
     Const(serde_json::Value),
     BinaryFunction {
         function: Function,
@@ -81,17 +90,24 @@ pub enum TypeError {
     TableNotFound(TableName),
     ColumnNotFound {
         table_name: TableName,
-        column_name: String,
+        column_name: ColumnName,
     },
     ColumnMismatch {
         table_name: TableName,
-        column_name: String,
+        column_name: ColumnName,
         left: ScalarType,
         right: ScalarType,
     },
     MissingColumnInInput {
         table_name: TableName,
-        column_name: String,
+        column_name: ColumnName,
+    },
+    TypeMismatchInInput {
+        expected_type: Type,
+        input_value: Value,
+    },
+    UnknownScalarTypeForValue {
+        value: Value,
     },
 }
 
@@ -116,8 +132,8 @@ pub struct Table {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Columns {
-    SingleConstructor(BTreeMap<String, ScalarType>),
-    MultipleConstructors(BTreeMap<String, BTreeMap<String, ScalarType>>),
+    SingleConstructor(BTreeMap<ColumnName, ScalarType>),
+    MultipleConstructors(BTreeMap<String, BTreeMap<ColumnName, ScalarType>>),
 }
 
 pub fn bool_expr(bool: bool) -> Expression {
