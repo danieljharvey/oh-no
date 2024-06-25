@@ -1,4 +1,4 @@
-use super::super::types::{Columns, Insert, Table, TableName, TypeError};
+use crate::types::{Columns, Insert, Table, TableName, TypeError};
 use std::collections::BTreeMap;
 
 fn get_table<'a>(
@@ -39,7 +39,9 @@ pub fn typecheck_insert(
 
 #[cfg(test)]
 mod tests {
-    use super::{typecheck_insert, BTreeMap, Insert, TableName, TypeError};
+    use super::{typecheck_insert, BTreeMap};
+    use crate::types::{ColumnName, Columns, Insert, ScalarType, Table, TableName, TypeError};
+    use serde_json::json;
 
     #[test]
     fn table_doesnt_exist() {
@@ -56,11 +58,11 @@ mod tests {
             Err(TypeError::TableNotFound(TableName("Horses".to_string())))
         );
     }
-    /*
+
     #[test]
     fn column_is_missing() {
         let mut columns = BTreeMap::new();
-        columns.insert("age".to_string(), ScalarType::Int);
+        columns.insert(ColumnName("age".to_string()), ScalarType::Int);
 
         let table = Table {
             name: "Horses".to_string(),
@@ -82,9 +84,8 @@ mod tests {
             typecheck_insert(&tables, &insert),
             Err(TypeError::MissingColumnInInput {
                 table_name: TableName("Horses".to_string()),
-                column_name: "age".to_string()
+                column_name: ColumnName("age".to_string())
             })
         )
     }
-    */
 }

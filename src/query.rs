@@ -1,6 +1,8 @@
 use super::data::lookup_table;
 use super::typecheck::select::typecheck_select;
-use super::types::{and, equals, Expression, Function, Select, SelectColumns, SelectError};
+use super::types::{
+    and, equals, ColumnName, Expression, Function, Select, SelectColumns, SelectError,
+};
 use rocksdb::DB;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -25,7 +27,7 @@ fn matches_prefix(prefix: &str, key: &[u8]) -> bool {
 fn add_constructor_to_expression(
     columns: SelectColumns,
     r#where: Expression,
-) -> (Expression, Vec<String>) {
+) -> (Expression, Vec<ColumnName>) {
     match columns {
         SelectColumns::SelectColumns { columns } => (r#where, columns),
         SelectColumns::SelectConstructor {
@@ -35,7 +37,7 @@ fn add_constructor_to_expression(
             and(
                 r#where,
                 equals(
-                    Expression::Column("_type".to_string()),
+                    Expression::Column(ColumnName("_type".to_string())),
                     Expression::Const(serde_json::Value::String(constructor.clone())),
                 ),
             ),
@@ -82,8 +84,11 @@ pub fn select(db: &DB, select: Select) -> Result<Vec<(usize, Value)>, SelectErro
             for column in &columns {
                 // if we can't find the value, return `null`
                 // the typechecker should have worked out if this should happen or not
-                let item = json_object.get(column).cloned().unwrap_or(Value::Null);
-                output.insert(column.clone(), item);
+                let item = json_object
+                    .get(&column.to_string())
+                    .cloned()
+                    .unwrap_or(Value::Null);
+                output.insert(column.to_string(), item);
             }
 
             let json_value = serde_json::Value::Object(output);
@@ -107,7 +112,7 @@ fn apply_expression(result: &serde_json::Value, expression: &Expression) -> Expr
     match expression {
         Expression::Column(column_name) => {
             let json_object = result.as_object().unwrap();
-            let inner = json_object.get(column_name).unwrap();
+            let inner = json_object.get(&column_name.to_string()).unwrap();
             Expression::Const(inner.clone())
         }
         Expression::BinaryFunction {
@@ -135,11 +140,11 @@ fn apply_expression(result: &serde_json::Value, expression: &Expression) -> Expr
 #[cfg(test)]
 mod testing {
     use super::super::data::{insert, insert_table};
-    use super::super::types::{
-        and, equals, Columns, Expression, Insert, ScalarType, Select, SelectColumns, SelectError,
-        Table, TableName, TypeError,
-    };
     use super::{empty_where, select};
+    use crate::types::{
+        and, equals, ColumnName, Columns, Expression, Insert, ScalarType, Select, SelectColumns,
+        SelectError, Table, TableName, TypeError,
+    };
     use rocksdb::{Options, DB};
     use serde_json::Value;
     use std::collections::BTreeMap;
@@ -151,13 +156,13 @@ mod testing {
 
     fn insert_pet_data(db: &DB) {
         let mut pet_columns = BTreeMap::new();
-        pet_columns.insert("age".to_string(), ScalarType::Int);
-        pet_columns.insert("name".to_string(), ScalarType::String);
+        pet_columns.insert(ColumnName("age".to_string()), ScalarType::Int);
+        pet_columns.insert(ColumnName("name".to_string()), ScalarType::String);
 
         let mut constructors = BTreeMap::new();
         constructors.insert("cat".to_string(), pet_columns.clone());
 
-        pet_columns.insert("likes_stick".to_string(), ScalarType::Bool);
+        pet_columns.insert(ColumnName("likes_stick".to_string()), ScalarType::Bool);
 
         constructors.insert("dog".to_string(), pet_columns);
 
@@ -193,9 +198,9 @@ mod testing {
 
     fn insert_user_data(db: &DB) {
         let mut user_columns = BTreeMap::new();
-        user_columns.insert("age".to_string(), ScalarType::Int);
-        user_columns.insert("nice".to_string(), ScalarType::Bool);
-        user_columns.insert("name".to_string(), ScalarType::String);
+        user_columns.insert(ColumnName("age".to_string()), ScalarType::Int);
+        user_columns.insert(ColumnName("nice".to_string()), ScalarType::Bool);
+        user_columns.insert(ColumnName("name".to_string()), ScalarType::String);
 
         insert_table(
             &db,
@@ -247,7 +252,7 @@ mod testing {
                     Select {
                         table: TableName("missing".to_string()),
                         columns: SelectColumns::SelectColumns {
-                            columns: vec!["name".to_string()]
+                            columns: vec![ColumnName("name".to_string())]
                         },
                         r#where: empty_where()
                     }
@@ -271,13 +276,13 @@ mod testing {
                     Select {
                         table: TableName("user".to_string()),
                         columns: SelectColumns::SelectColumns {
-                            columns: vec!["missing".to_string()]
+                            columns: vec![ColumnName("missing".to_string())]
                         },
                         r#where: empty_where()
                     }
                 ),
                 Err(SelectError::TypeError(TypeError::ColumnNotFound {
-                    column_name: "missing".to_string(),
+                    column_name: ColumnName("missing".to_string()),
                     table_name: TableName("user".to_string())
                 }))
             )
@@ -298,11 +303,11 @@ mod testing {
                     Select {
                         table: TableName("user".to_string()),
                         columns: SelectColumns::SelectColumns { columns: vec![] },
-                        r#where: Expression::Column("missing".to_string())
+                        r#where: Expression::Column(ColumnName("missing".to_string()))
                     }
                 ),
                 Err(SelectError::TypeError(TypeError::ColumnNotFound {
-                    column_name: "missing".to_string(),
+                    column_name: ColumnName("missing".to_string()),
                     table_name: TableName("user".to_string())
                 }))
             )
@@ -329,7 +334,7 @@ mod testing {
                     Select {
                         table: TableName("user".to_string()),
                         columns: SelectColumns::SelectColumns {
-                            columns: vec!["name".to_string()]
+                            columns: vec![ColumnName("name".to_string())]
                         },
                         r#where: empty_where()
                     }
@@ -355,12 +360,12 @@ mod testing {
                     Select {
                         table: TableName("user".to_string()),
                         columns: SelectColumns::SelectColumns {
-                            columns: vec!["name".to_string()]
+                            columns: vec![ColumnName("name".to_string())]
                         },
                         r#where: and(
-                            Expression::Column("nice".to_string()),
+                            Expression::Column(ColumnName("nice".to_string())),
                             equals(
-                                Expression::Column("age".to_string()),
+                                Expression::Column(ColumnName("age".to_string())),
                                 Expression::Const(Value::Number(serde_json::Number::from(100)))
                             )
                         )
@@ -391,7 +396,10 @@ mod testing {
                         table: TableName("pet".to_string()),
                         columns: SelectColumns::SelectConstructor {
                             constructor: "cat".to_string(),
-                            columns: vec!["age".to_string(), "name".to_string()]
+                            columns: vec![
+                                ColumnName("age".to_string()),
+                                ColumnName("name".to_string())
+                            ]
                         },
                         r#where: empty_where()
                     }
@@ -426,7 +434,10 @@ mod testing {
                     Select {
                         table: TableName("pet".to_string()),
                         columns: SelectColumns::SelectColumns {
-                            columns: vec!["age".to_string(), "name".to_string()]
+                            columns: vec![
+                                ColumnName("age".to_string()),
+                                ColumnName("name".to_string())
+                            ]
                         },
                         r#where: empty_where()
                     }
@@ -464,9 +475,9 @@ mod testing {
                         table: TableName("pet".to_string()),
                         columns: SelectColumns::SelectColumns {
                             columns: vec![
-                                "age".to_string(),
-                                "name".to_string(),
-                                "likes_stick".to_string()
+                                ColumnName("age".to_string()),
+                                ColumnName("name".to_string()),
+                                ColumnName("likes_stick".to_string())
                             ]
                         },
                         r#where: empty_where()

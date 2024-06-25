@@ -1,13 +1,15 @@
-use super::super::types::{Columns, Table, TableName, Type, TypeError};
+use super::super::types::{ColumnName, Columns, Table, TableName, Type, TypeError};
 
-pub fn typecheck_column(table: &Table, column_name: &String) -> Result<(String, Type), TypeError> {
-    println!("typecheck_column {table:?}: {column_name:?}");
+pub fn typecheck_column(
+    table: &Table,
+    column_name: &ColumnName,
+) -> Result<(ColumnName, Type), TypeError> {
     match &table.columns {
         Columns::SingleConstructor(columns) => match columns.get(column_name) {
             Some(scalar_type) => Ok((column_name.clone(), Type::ScalarType(scalar_type.clone()))),
             None => Err(TypeError::ColumnNotFound {
                 table_name: TableName(table.name.clone()),
-                column_name: column_name.to_string(),
+                column_name: column_name.clone(),
             }),
         },
         Columns::MultipleConstructors(constructors) => {
@@ -24,7 +26,7 @@ pub fn typecheck_column(table: &Table, column_name: &String) -> Result<(String, 
                     } else {
                         // throw error, different types
                         Err(TypeError::ColumnMismatch {
-                            column_name: "age".to_string(),
+                            column_name: ColumnName("age".to_string()),
                             table_name: TableName(table.name.clone()),
                             left: first.clone(),
                             right: (*this_match).clone(),
@@ -46,7 +48,7 @@ pub fn typecheck_column(table: &Table, column_name: &String) -> Result<(String, 
                 // no matches at all is a type error
                 Err(TypeError::ColumnNotFound {
                     table_name: TableName(table.name.clone()),
-                    column_name: column_name.to_string(),
+                    column_name: column_name.clone(),
                 })
             }
         }
@@ -56,13 +58,13 @@ pub fn typecheck_column(table: &Table, column_name: &String) -> Result<(String, 
 #[cfg(test)]
 mod tests {
     use super::typecheck_column;
-    use crate::types::{Columns, ScalarType, Table, TableName, Type, TypeError};
+    use crate::types::{ColumnName, Columns, ScalarType, Table, TableName, Type, TypeError};
     use std::collections::BTreeMap;
 
     #[test]
     fn single_column_is_non_null() {
         let mut columns = BTreeMap::new();
-        columns.insert("age".to_string(), ScalarType::Int);
+        columns.insert(ColumnName("age".to_string()), ScalarType::Int);
 
         let table = Table {
             name: "User".to_string(),
@@ -70,8 +72,11 @@ mod tests {
         };
 
         assert_eq!(
-            typecheck_column(&table, &"age".to_string()),
-            Ok(("age".to_string(), Type::ScalarType(ScalarType::Int)))
+            typecheck_column(&table, &ColumnName("age".to_string())),
+            Ok((
+                ColumnName("age".to_string()),
+                Type::ScalarType(ScalarType::Int)
+            ))
         );
     }
 
@@ -89,10 +94,10 @@ mod tests {
         };
 
         assert_eq!(
-            typecheck_column(&table, &"age".to_string()),
+            typecheck_column(&table, &ColumnName("age".to_string())),
             Err(TypeError::ColumnNotFound {
                 table_name: TableName(table.name.clone()),
-                column_name: "age".to_string()
+                column_name: ColumnName("age".to_string())
             })
         );
     }
@@ -100,7 +105,7 @@ mod tests {
     #[test]
     fn multiple_columns_non_null_in_all() {
         let mut columns = BTreeMap::new();
-        columns.insert("age".to_string(), ScalarType::Int);
+        columns.insert(ColumnName("age".to_string()), ScalarType::Int);
 
         let mut constructors = BTreeMap::new();
         constructors.insert("User".to_string(), columns.clone());
@@ -112,18 +117,21 @@ mod tests {
         };
 
         assert_eq!(
-            typecheck_column(&table, &"age".to_string()),
-            Ok(("age".to_string(), Type::ScalarType(ScalarType::Int)))
+            typecheck_column(&table, &ColumnName("age".to_string())),
+            Ok((
+                ColumnName("age".to_string()),
+                Type::ScalarType(ScalarType::Int)
+            ))
         );
     }
 
     #[test]
     fn mismatched_columns() {
         let mut user_columns = BTreeMap::new();
-        user_columns.insert("age".to_string(), ScalarType::Int);
+        user_columns.insert(ColumnName("age".to_string()), ScalarType::Int);
 
         let mut admin_columns = BTreeMap::new();
-        admin_columns.insert("age".to_string(), ScalarType::String);
+        admin_columns.insert(ColumnName("age".to_string()), ScalarType::String);
 
         let mut constructors = BTreeMap::new();
         constructors.insert("User".to_string(), user_columns);
@@ -135,9 +143,9 @@ mod tests {
         };
 
         assert_eq!(
-            typecheck_column(&table, &"age".to_string()),
+            typecheck_column(&table, &ColumnName("age".to_string())),
             Err(TypeError::ColumnMismatch {
-                column_name: "age".to_string(),
+                column_name: ColumnName("age".to_string()),
                 table_name: TableName(table.name.clone()),
                 left: ScalarType::Int,
                 right: ScalarType::String

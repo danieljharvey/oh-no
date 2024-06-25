@@ -1,7 +1,7 @@
-use super::super::types::{
-    Columns, Expression, Select, SelectColumns, Table, TableName, Type, TypeError,
-};
 use super::column::typecheck_column;
+use crate::types::{
+    ColumnName, Columns, Expression, Select, SelectColumns, Table, TableName, Type, TypeError,
+};
 use std::collections::BTreeMap;
 
 pub fn empty_where() -> Expression {
@@ -12,7 +12,7 @@ pub fn empty_where() -> Expression {
 pub fn typecheck_select(
     tables: &BTreeMap<TableName, Table>,
     select: &Select,
-) -> Result<Vec<(String, Type)>, TypeError> {
+) -> Result<Vec<(ColumnName, Type)>, TypeError> {
     // this should already be there
     let table = tables.get(&select.table).unwrap();
 
@@ -21,7 +21,7 @@ pub fn typecheck_select(
         | SelectColumns::SelectConstructor { columns, .. } => columns,
     };
 
-    let typed_columns: Vec<(String, Type)> =
+    let typed_columns: Vec<(ColumnName, Type)> =
         select_columns
             .iter()
             .try_fold(Vec::new(), |mut acc, column| {
