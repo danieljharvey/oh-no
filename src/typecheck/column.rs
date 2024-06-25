@@ -1,4 +1,4 @@
-use super::super::types::{ColumnName, Columns, Table, TableName, Type, TypeError};
+use crate::types::{ColumnName, Columns, Table, TableName, Type, TypeError};
 
 pub fn typecheck_column(
     table: &Table,

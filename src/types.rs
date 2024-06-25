@@ -43,7 +43,7 @@ pub enum SelectColumns {
 pub struct Insert {
     pub table: TableName,
     pub key: i32,
-    pub value: Value,
+    pub value: BTreeMap<ColumnName, Value>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -101,6 +101,13 @@ pub enum TypeError {
     MissingColumnInInput {
         table_name: TableName,
         column_name: ColumnName,
+    },
+    TypeMismatchInInput {
+        expected_type: Type,
+        input_value: Value,
+    },
+    UnknownScalarTypeForValue {
+        value: Value,
     },
 }
 
