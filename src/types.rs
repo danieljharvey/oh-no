@@ -1,5 +1,6 @@
 use core::fmt;
 use core::fmt::Display;
+use serde::Serialize;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -22,6 +23,15 @@ impl Display for ColumnName {
     }
 }
 
+#[derive(Serialize, Deserialize, Hash, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Constructor(pub String);
+
+impl Display for Constructor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 pub struct Select {
     pub table: TableName,
     pub columns: SelectColumns,
@@ -31,7 +41,7 @@ pub struct Select {
 #[derive(Debug, PartialEq)]
 pub enum SelectColumns {
     SelectConstructor {
-        constructor: String,
+        constructor: Constructor,
         columns: Vec<ColumnName>,
     },
     SelectColumns {
@@ -39,11 +49,24 @@ pub enum SelectColumns {
     },
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[serde(untagged)]
+pub enum InsertValue {
+    Single {
+        values: BTreeMap<ColumnName, Value>,
+    },
+    Multiple {
+        #[serde(rename = "_type")]
+        constructor: Constructor,
+        values: BTreeMap<ColumnName, Value>,
+    },
+}
+
 #[derive(Debug, PartialEq)]
 pub struct Insert {
     pub table: TableName,
     pub key: i32,
-    pub value: BTreeMap<ColumnName, Value>,
+    pub value: InsertValue,
 }
 
 #[derive(Debug, PartialEq)]
@@ -126,14 +149,14 @@ pub enum Type {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Table {
-    pub name: String,
+    pub name: TableName,
     pub columns: Columns,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Columns {
     SingleConstructor(BTreeMap<ColumnName, ScalarType>),
-    MultipleConstructors(BTreeMap<String, BTreeMap<ColumnName, ScalarType>>),
+    MultipleConstructors(BTreeMap<Constructor, BTreeMap<ColumnName, ScalarType>>),
 }
 
 pub fn bool_expr(bool: bool) -> Expression {

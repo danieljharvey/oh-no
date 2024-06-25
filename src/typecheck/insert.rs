@@ -1,5 +1,5 @@
 use crate::typecheck::{column::typecheck_column, scalar::typecheck_scalar};
-use crate::types::{Columns, Insert, Table, TableName, TypeError};
+use crate::types::{Columns, Insert, InsertValue, Table, TableName, TypeError};
 use std::collections::BTreeMap;
 
 fn get_table<'a>(
@@ -18,25 +18,26 @@ pub fn typecheck_insert(
 ) -> Result<(), TypeError> {
     let table = get_table(tables, &insert.table)?;
 
-    match &table.columns {
-        Columns::SingleConstructor(columns) => {
+    match (&insert.value, &table.columns) {
+        (InsertValue::Single { values }, Columns::SingleConstructor(columns)) => {
             let mut typecheck_columns = BTreeMap::new();
 
             for column_name in columns.keys() {
                 let (_, column_type) = typecheck_column(table, column_name)?;
-                let value = insert.value.get(column_name).ok_or_else(|| {
-                    TypeError::MissingColumnInInput {
-                        column_name: column_name.clone(),
-                        table_name: insert.table.clone(),
-                    }
-                })?;
+                let value =
+                    values
+                        .get(column_name)
+                        .ok_or_else(|| TypeError::MissingColumnInInput {
+                            column_name: column_name.clone(),
+                            table_name: insert.table.clone(),
+                        })?;
                 typecheck_scalar(value, &column_type)?;
                 typecheck_columns.insert(column_name, column_type);
             }
 
             Ok(())
         }
-        Columns::MultipleConstructors(_) => Ok(()),
+        _ => todo!("poo!"),
     }
 }
 
@@ -44,7 +45,8 @@ pub fn typecheck_insert(
 mod tests {
     use super::{typecheck_insert, BTreeMap};
     use crate::types::{
-        ColumnName, Columns, Insert, ScalarType, Table, TableName, Type, TypeError,
+        ColumnName, Columns, Constructor, Insert, InsertValue, ScalarType, Table, TableName, Type,
+        TypeError,
     };
     use serde_json::Value;
 
@@ -55,7 +57,9 @@ mod tests {
         let insert = Insert {
             table: TableName("Horses".to_string()),
             key: 100,
-            value: BTreeMap::new(),
+            value: InsertValue::Single {
+                values: BTreeMap::new(),
+            },
         };
 
         assert_eq!(
@@ -70,7 +74,7 @@ mod tests {
         columns.insert(ColumnName("age".to_string()), ScalarType::Int);
 
         let table = Table {
-            name: "Horses".to_string(),
+            name: TableName("Horses".to_string()),
             columns: Columns::SingleConstructor(columns),
         };
 
@@ -80,7 +84,9 @@ mod tests {
         let insert = Insert {
             table: TableName("Horses".to_string()),
             key: 100,
-            value: BTreeMap::new(),
+            value: InsertValue::Single {
+                values: BTreeMap::new(),
+            },
         };
 
         assert_eq!(
@@ -98,7 +104,7 @@ mod tests {
         columns.insert(ColumnName("age".to_string()), ScalarType::Int);
 
         let table = Table {
-            name: "Horses".to_string(),
+            name: TableName("Horses".to_string()),
             columns: Columns::SingleConstructor(columns),
         };
 
@@ -115,7 +121,9 @@ mod tests {
         let insert = Insert {
             table: TableName("Horses".to_string()),
             key: 100,
-            value: insert_value,
+            value: InsertValue::Single {
+                values: insert_value,
+            },
         };
 
         assert_eq!(
@@ -123,6 +131,44 @@ mod tests {
             Err(TypeError::TypeMismatchInInput {
                 expected_type: Type::ScalarType(ScalarType::Int),
                 input_value: Value::String("dog".to_string())
+            })
+        )
+    }
+
+    #[test]
+    fn multi_constructor_column_is_missing() {
+        let mut age_columns = BTreeMap::new();
+        age_columns.insert(ColumnName("age".to_string()), ScalarType::Int);
+
+        let mut name_columns = BTreeMap::new();
+        name_columns.insert(ColumnName("name".to_string()), ScalarType::String);
+
+        let mut constructors = BTreeMap::new();
+        constructors.insert(Constructor("Age".to_string()), age_columns);
+        constructors.insert(Constructor("Name".to_string()), name_columns);
+
+        let table = Table {
+            name: TableName("Horses".to_string()),
+            columns: Columns::MultipleConstructors(constructors),
+        };
+
+        let mut tables = BTreeMap::new();
+        tables.insert(TableName("Horses".to_string()), table);
+
+        let insert = Insert {
+            table: TableName("Horses".to_string()),
+            key: 100,
+            value: InsertValue::Multiple {
+                constructor: Constructor("Age".to_string()),
+                values: BTreeMap::new(),
+            },
+        };
+
+        assert_eq!(
+            typecheck_insert(&tables, &insert),
+            Err(TypeError::MissingColumnInInput {
+                table_name: TableName("Horses".to_string()),
+                column_name: ColumnName("age".to_string())
             })
         )
     }

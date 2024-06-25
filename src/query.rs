@@ -38,7 +38,7 @@ fn add_constructor_to_expression(
                 r#where,
                 equals(
                     Expression::Column(ColumnName("_type".to_string())),
-                    Expression::Const(serde_json::Value::String(constructor.clone())),
+                    Expression::Const(serde_json::Value::String(constructor.to_string())),
                 ),
             ),
             columns,
@@ -142,8 +142,8 @@ mod testing {
     use super::super::data::{insert, insert_table};
     use super::{empty_where, select};
     use crate::types::{
-        and, equals, ColumnName, Columns, Expression, Insert, ScalarType, Select, SelectColumns,
-        SelectError, Table, TableName, TypeError,
+        and, equals, ColumnName, Columns, Constructor, Expression, Insert, InsertValue, ScalarType,
+        Select, SelectColumns, SelectError, Table, TableName, TypeError,
     };
     use rocksdb::{Options, DB};
     use serde_json::Value;
@@ -160,38 +160,56 @@ mod testing {
         pet_columns.insert(ColumnName("name".to_string()), ScalarType::String);
 
         let mut constructors = BTreeMap::new();
-        constructors.insert("cat".to_string(), pet_columns.clone());
+        constructors.insert(Constructor("cat".to_string()), pet_columns.clone());
 
         pet_columns.insert(ColumnName("likes_stick".to_string()), ScalarType::Bool);
 
-        constructors.insert("dog".to_string(), pet_columns);
+        constructors.insert(Constructor("dog".to_string()), pet_columns);
 
         insert_table(
             &db,
             &Table {
-                name: "pet".to_string(),
+                name: TableName("pet".to_string()),
                 columns: Columns::MultipleConstructors(constructors),
             },
         );
+
+        let mut cat_row = BTreeMap::new();
+        cat_row.insert(ColumnName("age".to_string()), Value::Number(27.into()));
+        cat_row.insert(
+            ColumnName("name".to_string()),
+            Value::String("Mr Cat".into()),
+        );
+
         insert(
             &db,
             &Insert {
                 table: TableName("pet".to_string()),
                 key: 1,
-                value: serde_json::from_str("{\"_type\":\"cat\",\"age\":27,\"name\":\"Mr Cat\"}")
-                    .unwrap(),
+                value: InsertValue::Multiple {
+                    constructor: Constructor("cat".into()),
+                    values: cat_row,
+                },
             },
         );
+
+        let mut dog_row = BTreeMap::new();
+        dog_row.insert(ColumnName("age".to_string()), Value::Number(21.into()));
+        dog_row.insert(
+            ColumnName("name".to_string()),
+            Value::String("Mr Dog".into()),
+        );
+        dog_row.insert(ColumnName("likes_stick".to_string()), Value::Bool(true));
 
         insert(
             &db,
             &Insert {
                 table: TableName("pet".to_string()),
                 key: 2,
-                value: serde_json::from_str(
-                    "{\"_type\":\"dog\",\"age\":21,\"name\":\"Mr Dog\",\"likes_stick\":true}",
-                )
-                .unwrap(),
+                value: InsertValue::Multiple {
+                    constructor: Constructor("dog".into()),
+                    values: dog_row,
+                },
             },
         );
     }
@@ -205,36 +223,53 @@ mod testing {
         insert_table(
             &db,
             &Table {
-                name: "user".to_string(),
+                name: TableName("user".to_string()),
                 columns: Columns::SingleConstructor(user_columns),
             },
         );
+
+        let mut user_row_1 = BTreeMap::new();
+        user_row_1.insert(ColumnName("age".to_string()), Value::Number(27.into()));
+        user_row_1.insert(ColumnName("nice".to_string()), Value::Bool(false));
+        user_row_1.insert(ColumnName("name".to_string()), Value::String("Egg".into()));
 
         insert(
             &db,
             &Insert {
                 table: TableName("user".to_string()),
                 key: 1,
-                value: serde_json::from_str("{\"age\":27,\"nice\":false,\"name\":\"Egg\"}")
-                    .unwrap(),
+                value: InsertValue::Single { values: user_row_1 },
             },
         );
+
+        let mut user_row_2 = BTreeMap::new();
+        user_row_2.insert(ColumnName("age".to_string()), Value::Number(100.into()));
+        user_row_2.insert(ColumnName("nice".to_string()), Value::Bool(true));
+        user_row_2.insert(
+            ColumnName("name".to_string()),
+            Value::String("Horse".into()),
+        );
+
         insert(
             &db,
             &Insert {
                 table: TableName("user".to_string()),
                 key: 2,
-                value: serde_json::from_str("{\"age\":100,\"nice\":true,\"name\":\"Horse\"}")
-                    .unwrap(),
+                value: InsertValue::Single { values: user_row_2 },
             },
         );
+
+        let mut user_row_3 = BTreeMap::new();
+        user_row_3.insert(ColumnName("age".to_string()), Value::Number(46.into()));
+        user_row_3.insert(ColumnName("nice".to_string()), Value::Bool(false));
+        user_row_3.insert(ColumnName("name".to_string()), Value::String("Log".into()));
+
         insert(
             &db,
             &Insert {
                 table: TableName("user".to_string()),
                 key: 3,
-                value: serde_json::from_str("{\"age\":46,\"nice\":false,\"name\":\"Log\"}")
-                    .unwrap(),
+                value: InsertValue::Single { values: user_row_3 },
             },
         );
     }
@@ -395,7 +430,7 @@ mod testing {
                     Select {
                         table: TableName("pet".to_string()),
                         columns: SelectColumns::SelectConstructor {
-                            constructor: "cat".to_string(),
+                            constructor: Constructor("cat".to_string()),
                             columns: vec![
                                 ColumnName("age".to_string()),
                                 ColumnName("name".to_string())

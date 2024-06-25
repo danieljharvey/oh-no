@@ -1,11 +1,14 @@
-use super::types::{Insert, Table, TableName};
+use super::types::{Insert, InsertValue, Table, TableName};
 use rocksdb::DB;
+use serde_json::Value;
 
 // functions for smashing stuff into RocksDB
 
 pub fn insert(db: &DB, insert: &Insert) {
     let key = format!("data_{}_{}", insert.table, insert.key);
-    let _ = db.put(key, serde_json::to_string(&insert.value).unwrap());
+    let value = serde_json::to_string(&insert.value).unwrap();
+    println!("insert {value}");
+    let _ = db.put(key, value);
 }
 
 pub fn insert_table(db: &DB, table: &Table) {
