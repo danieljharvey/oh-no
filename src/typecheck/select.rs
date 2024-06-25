@@ -17,8 +17,8 @@ pub fn typecheck_select(
     let table = tables.get(&select.table).unwrap();
 
     let select_columns = match &select.columns {
-        SelectColumns::SelectColumns { columns } => columns,
-        SelectColumns::SelectConstructor { columns, .. } => columns,
+        SelectColumns::SelectColumns { columns }
+        | SelectColumns::SelectConstructor { columns, .. } => columns,
     };
 
     let typed_columns: Vec<(String, Type)> =

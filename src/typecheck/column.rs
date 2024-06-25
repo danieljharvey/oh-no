@@ -18,8 +18,10 @@ pub fn typecheck_column(table: &Table, column_name: &String) -> Result<(String, 
 
             if let Some(first) = matches.pop() {
                 // compare the rest to the first
-                for this_match in matches.iter() {
-                    if this_match != &first {
+                for this_match in &matches {
+                    if this_match == &first {
+                        Ok(())
+                    } else {
                         // throw error, different types
                         Err(TypeError::ColumnMismatch {
                             column_name: "age".to_string(),
@@ -27,8 +29,6 @@ pub fn typecheck_column(table: &Table, column_name: &String) -> Result<(String, 
                             left: first.clone(),
                             right: (*this_match).clone(),
                         })
-                    } else {
-                        Ok(())
                     }?;
                 }
                 // how many constructors contain this column?

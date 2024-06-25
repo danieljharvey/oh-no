@@ -73,7 +73,7 @@ pub fn select(db: &DB, select: Select) -> Result<Vec<(usize, Value)>, SelectErro
         let val_string = std::str::from_utf8(&value).unwrap();
         let json = serde_json::Value::from_str(val_string).unwrap();
 
-        if is_true(apply_expression(&json, &expression)) {
+        if is_true(&apply_expression(&json, &expression)) {
             let json_object = json.as_object().unwrap();
             // collect only the columns we care about
             let mut output = serde_json::Map::new();
@@ -94,7 +94,7 @@ pub fn select(db: &DB, select: Select) -> Result<Vec<(usize, Value)>, SelectErro
     Ok(results)
 }
 
-fn is_true(expression: Expression) -> bool {
+fn is_true(expression: &Expression) -> bool {
     matches!(expression, Expression::Const(serde_json::Value::Bool(true)))
 }
 
@@ -121,7 +121,7 @@ fn apply_expression(result: &serde_json::Value, expression: &Expression) -> Expr
                 bool_expr(left2 == right2)
             }
             Function::And => {
-                if is_true(apply_expression(result, expr_left)) {
+                if is_true(&apply_expression(result, expr_left)) {
                     apply_expression(result, expr_right)
                 } else {
                     bool_expr(false)
@@ -163,14 +163,14 @@ mod testing {
 
         insert_table(
             &db,
-            Table {
+            &Table {
                 name: "pet".to_string(),
                 columns: Columns::MultipleConstructors(constructors),
             },
         );
         insert(
             &db,
-            Insert {
+            &Insert {
                 table: TableName("pet".to_string()),
                 key: 1,
                 value: serde_json::from_str("{\"_type\":\"cat\",\"age\":27,\"name\":\"Mr Cat\"}")
@@ -180,7 +180,7 @@ mod testing {
 
         insert(
             &db,
-            Insert {
+            &Insert {
                 table: TableName("pet".to_string()),
                 key: 2,
                 value: serde_json::from_str(
@@ -199,7 +199,7 @@ mod testing {
 
         insert_table(
             &db,
-            Table {
+            &Table {
                 name: "user".to_string(),
                 columns: Columns::SingleConstructor(user_columns),
             },
@@ -207,7 +207,7 @@ mod testing {
 
         insert(
             &db,
-            Insert {
+            &Insert {
                 table: TableName("user".to_string()),
                 key: 1,
                 value: serde_json::from_str("{\"age\":27,\"nice\":false,\"name\":\"Egg\"}")
@@ -216,7 +216,7 @@ mod testing {
         );
         insert(
             &db,
-            Insert {
+            &Insert {
                 table: TableName("user".to_string()),
                 key: 2,
                 value: serde_json::from_str("{\"age\":100,\"nice\":true,\"name\":\"Horse\"}")
@@ -225,7 +225,7 @@ mod testing {
         );
         insert(
             &db,
-            Insert {
+            &Insert {
                 table: TableName("user".to_string()),
                 key: 3,
                 value: serde_json::from_str("{\"age\":46,\"nice\":false,\"name\":\"Log\"}")

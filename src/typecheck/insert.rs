@@ -33,7 +33,7 @@ pub fn typecheck_insert(
 
             Ok(())
         }
-        _ => Ok(()),
+        Columns::MultipleConstructors(_) => Ok(()),
     }
 }
 
