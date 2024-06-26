@@ -43,7 +43,7 @@ fn typecheck_expression(table: &Table, expression: &Expression) -> Result<(), Ty
                 Some(_) => Ok(()),
                 None => Err(TypeError::ColumnNotFound {
                     column_name: column_name.clone(),
-                    table_name: TableName(table.name.clone()),
+                    table_name: table.name.clone(),
                 }),
             },
             Columns::MultipleConstructors(_) => todo!("multiple constructors"),

@@ -1,4 +1,4 @@
-use crate::types::{ColumnName, Columns, Table, TableName, Type, TypeError};
+use crate::types::{ColumnName, Columns, Table, Type, TypeError};
 
 pub fn typecheck_column(
     table: &Table,
@@ -8,7 +8,7 @@ pub fn typecheck_column(
         Columns::SingleConstructor(columns) => match columns.get(column_name) {
             Some(scalar_type) => Ok((column_name.clone(), Type::ScalarType(scalar_type.clone()))),
             None => Err(TypeError::ColumnNotFound {
-                table_name: TableName(table.name.clone()),
+                table_name: table.name.clone(),
                 column_name: column_name.clone(),
             }),
         },
@@ -27,7 +27,7 @@ pub fn typecheck_column(
                         // throw error, different types
                         Err(TypeError::ColumnMismatch {
                             column_name: ColumnName("age".to_string()),
-                            table_name: TableName(table.name.clone()),
+                            table_name: table.name.clone(),
                             left: first.clone(),
                             right: (*this_match).clone(),
                         })
@@ -47,7 +47,7 @@ pub fn typecheck_column(
             } else {
                 // no matches at all is a type error
                 Err(TypeError::ColumnNotFound {
-                    table_name: TableName(table.name.clone()),
+                    table_name: table.name.clone(),
                     column_name: column_name.clone(),
                 })
             }
@@ -58,7 +58,9 @@ pub fn typecheck_column(
 #[cfg(test)]
 mod tests {
     use super::typecheck_column;
-    use crate::types::{ColumnName, Columns, ScalarType, Table, TableName, Type, TypeError};
+    use crate::types::{
+        ColumnName, Columns, Constructor, ScalarType, Table, TableName, Type, TypeError,
+    };
     use std::collections::BTreeMap;
 
     #[test]
@@ -67,7 +69,7 @@ mod tests {
         columns.insert(ColumnName("age".to_string()), ScalarType::Int);
 
         let table = Table {
-            name: "User".to_string(),
+            name: TableName("User".to_string()),
             columns: Columns::SingleConstructor(columns),
         };
 
@@ -85,18 +87,18 @@ mod tests {
         let columns = BTreeMap::new();
 
         let mut constructors = BTreeMap::new();
-        constructors.insert("User".to_string(), columns.clone());
-        constructors.insert("Admin".to_string(), columns);
+        constructors.insert(Constructor("User".to_string()), columns.clone());
+        constructors.insert(Constructor("Admin".to_string()), columns);
 
         let table = Table {
-            name: "User".to_string(),
+            name: TableName("User".to_string()),
             columns: Columns::MultipleConstructors(constructors),
         };
 
         assert_eq!(
             typecheck_column(&table, &ColumnName("age".to_string())),
             Err(TypeError::ColumnNotFound {
-                table_name: TableName(table.name.clone()),
+                table_name: table.name.clone(),
                 column_name: ColumnName("age".to_string())
             })
         );
@@ -108,11 +110,11 @@ mod tests {
         columns.insert(ColumnName("age".to_string()), ScalarType::Int);
 
         let mut constructors = BTreeMap::new();
-        constructors.insert("User".to_string(), columns.clone());
-        constructors.insert("Admin".to_string(), columns);
+        constructors.insert(Constructor("User".to_string()), columns.clone());
+        constructors.insert(Constructor("Admin".to_string()), columns);
 
         let table = Table {
-            name: "User".to_string(),
+            name: TableName("User".to_string()),
             columns: Columns::MultipleConstructors(constructors),
         };
 
@@ -134,11 +136,11 @@ mod tests {
         admin_columns.insert(ColumnName("age".to_string()), ScalarType::String);
 
         let mut constructors = BTreeMap::new();
-        constructors.insert("User".to_string(), user_columns);
-        constructors.insert("Admin".to_string(), admin_columns);
+        constructors.insert(Constructor("User".to_string()), user_columns);
+        constructors.insert(Constructor("Admin".to_string()), admin_columns);
 
         let table = Table {
-            name: "User".to_string(),
+            name: TableName("User".to_string()),
             columns: Columns::MultipleConstructors(constructors),
         };
 
@@ -146,7 +148,7 @@ mod tests {
             typecheck_column(&table, &ColumnName("age".to_string())),
             Err(TypeError::ColumnMismatch {
                 column_name: ColumnName("age".to_string()),
-                table_name: TableName(table.name.clone()),
+                table_name: table.name.clone(),
                 left: ScalarType::Int,
                 right: ScalarType::String
             })

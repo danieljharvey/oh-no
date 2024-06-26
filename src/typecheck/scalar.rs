@@ -3,22 +3,25 @@ use serde_json::Value;
 
 pub fn typecheck_scalar(value: &Value, expected_type: &Type) -> Result<(), TypeError> {
     match (value, expected_type) {
-        (Value::String(_), Type::ScalarType(ScalarType::String))
-        | (Value::Bool(_), Type::ScalarType(ScalarType::Bool))
-        | (Value::Null, Type::Optional(_)) => Ok(()),
-        (Value::Number(num), Type::ScalarType(ScalarType::Int)) => {
-            if num.as_i64().is_some() {
-                Ok(())
-            } else {
-                Err(TypeError::UnknownScalarTypeForValue {
-                    value: value.clone(),
-                })
-            }
+        (Value::Null, Type::Optional(_)) => Ok(()),
+        (Value::Number(num), _)
+            if num.as_i64().is_some() && *inner_scalar_type(expected_type) == ScalarType::Int =>
+        {
+            Ok(())
         }
+        (Value::String(_), _) if *inner_scalar_type(expected_type) == ScalarType::String => Ok(()),
+        (Value::Bool(_), _) if *inner_scalar_type(expected_type) == ScalarType::Bool => Ok(()),
         _ => Err(TypeError::TypeMismatchInInput {
             expected_type: expected_type.clone(),
             input_value: value.clone(),
         }),
+    }
+}
+
+fn inner_scalar_type(expected_type: &Type) -> &ScalarType {
+    match expected_type {
+        Type::Optional(ty) => inner_scalar_type(ty),
+        Type::ScalarType(st) => st,
     }
 }
 
