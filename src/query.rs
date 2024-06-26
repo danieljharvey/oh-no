@@ -139,7 +139,7 @@ fn apply_expression(result: &serde_json::Value, expression: &Expression) -> Expr
 
 #[cfg(test)]
 mod testing {
-    use super::super::data::{insert, insert_table};
+    use super::super::data::insert_table;
     use super::{empty_where, select};
     use crate::types::{
         and, equals, ColumnName, Columns, Constructor, Expression, Insert, InsertValue, ScalarType,
@@ -149,12 +149,12 @@ mod testing {
     use serde_json::Value;
     use std::collections::BTreeMap;
 
-    fn insert_test_data(db: &DB) {
-        insert_user_data(db);
-        insert_pet_data(db); // this breaks users tests
+    fn insert_test_data(db: &DB) -> anyhow::Result<()> {
+        let _ = insert_user_data(db);
+        insert_pet_data(db)
     }
 
-    fn insert_pet_data(db: &DB) {
+    fn insert_pet_data(db: &DB) -> anyhow::Result<()> {
         let mut pet_columns = BTreeMap::new();
         pet_columns.insert(ColumnName("age".to_string()), ScalarType::Int);
         pet_columns.insert(ColumnName("name".to_string()), ScalarType::String);
@@ -181,7 +181,7 @@ mod testing {
             Value::String("Mr Cat".into()),
         );
 
-        insert(
+        let _ = crate::insert::insert(
             &db,
             &Insert {
                 table: TableName("pet".to_string()),
@@ -191,7 +191,7 @@ mod testing {
                     values: cat_row,
                 },
             },
-        );
+        )?;
 
         let mut dog_row = BTreeMap::new();
         dog_row.insert(ColumnName("age".to_string()), Value::Number(21.into()));
@@ -201,7 +201,7 @@ mod testing {
         );
         dog_row.insert(ColumnName("likes_stick".to_string()), Value::Bool(true));
 
-        insert(
+        let _ = crate::insert::insert(
             &db,
             &Insert {
                 table: TableName("pet".to_string()),
@@ -211,10 +211,12 @@ mod testing {
                     values: dog_row,
                 },
             },
-        );
+        )?;
+
+        Ok(())
     }
 
-    fn insert_user_data(db: &DB) {
+    fn insert_user_data(db: &DB) -> anyhow::Result<()> {
         let mut user_columns = BTreeMap::new();
         user_columns.insert(ColumnName("age".to_string()), ScalarType::Int);
         user_columns.insert(ColumnName("nice".to_string()), ScalarType::Bool);
@@ -233,14 +235,14 @@ mod testing {
         user_row_1.insert(ColumnName("nice".to_string()), Value::Bool(false));
         user_row_1.insert(ColumnName("name".to_string()), Value::String("Egg".into()));
 
-        insert(
+        let _ = crate::insert::insert(
             &db,
             &Insert {
                 table: TableName("user".to_string()),
                 key: 1,
                 value: InsertValue::Single { values: user_row_1 },
             },
-        );
+        )?;
 
         let mut user_row_2 = BTreeMap::new();
         user_row_2.insert(ColumnName("age".to_string()), Value::Number(100.into()));
@@ -250,28 +252,30 @@ mod testing {
             Value::String("Horse".into()),
         );
 
-        insert(
+        let _ = crate::insert::insert(
             &db,
             &Insert {
                 table: TableName("user".to_string()),
                 key: 2,
                 value: InsertValue::Single { values: user_row_2 },
             },
-        );
+        )?;
 
         let mut user_row_3 = BTreeMap::new();
         user_row_3.insert(ColumnName("age".to_string()), Value::Number(46.into()));
         user_row_3.insert(ColumnName("nice".to_string()), Value::Bool(false));
         user_row_3.insert(ColumnName("name".to_string()), Value::String("Log".into()));
 
-        insert(
+        let _ = crate::insert::insert(
             &db,
             &Insert {
                 table: TableName("user".to_string()),
                 key: 3,
                 value: InsertValue::Single { values: user_row_3 },
             },
-        );
+        )?;
+
+        Ok(())
     }
 
     #[test]
@@ -279,7 +283,7 @@ mod testing {
         let path = format!("./test_storage{}", rand::random::<i32>());
         {
             let db = DB::open_default(path.clone()).unwrap();
-            insert_test_data(&db);
+            insert_test_data(&db).expect("insert test data failure");
 
             assert_eq!(
                 select(
@@ -303,7 +307,7 @@ mod testing {
         let path = format!("./test_storage{}", rand::random::<i32>());
         {
             let db = DB::open_default(path.clone()).unwrap();
-            insert_test_data(&db);
+            insert_test_data(&db).expect("insert test data failure");
 
             assert_eq!(
                 select(
@@ -330,7 +334,7 @@ mod testing {
         let path = format!("./test_storage{}", rand::random::<i32>());
         {
             let db = DB::open_default(path.clone()).unwrap();
-            insert_test_data(&db);
+            insert_test_data(&db).expect("insert test data failure");
 
             assert_eq!(
                 select(
@@ -355,7 +359,7 @@ mod testing {
         let path = format!("./test_storage{}", rand::random::<i32>());
         {
             let db = DB::open_default(path.clone()).unwrap();
-            insert_test_data(&db);
+            insert_test_data(&db).expect("insert test data failure");
 
             let expected = vec![
                 (1, serde_json::from_str("{\"name\":\"Egg\"}").unwrap()),
@@ -385,7 +389,7 @@ mod testing {
         let path = format!("./test_storage{}", rand::random::<i32>());
         {
             let db = DB::open_default(path.clone()).unwrap();
-            insert_test_data(&db);
+            insert_test_data(&db).expect("insert test data failure");
 
             let expected = vec![(2, serde_json::from_str("{\"name\":\"Horse\"}").unwrap())];
 
@@ -417,7 +421,7 @@ mod testing {
         let path = format!("./test_storage{}", rand::random::<i32>());
         {
             let db = DB::open_default(path.clone()).unwrap();
-            insert_test_data(&db);
+            insert_test_data(&db).expect("insert test data failure");
 
             let expected = vec![(
                 1,
@@ -450,7 +454,7 @@ mod testing {
         let path = format!("./test_storage{}", rand::random::<i32>());
         {
             let db = DB::open_default(path.clone()).unwrap();
-            insert_test_data(&db);
+            insert_test_data(&db).expect("insert test data failure");
 
             let expected = vec![
                 (
@@ -488,7 +492,7 @@ mod testing {
         let path = format!("./test_storage{}", rand::random::<i32>());
         {
             let db = DB::open_default(path.clone()).unwrap();
-            insert_test_data(&db);
+            insert_test_data(&db).expect("insert test data failure");
 
             let expected = vec![
                 (

@@ -1,9 +1,9 @@
 use core::fmt;
 use core::fmt::Display;
-use serde::Serialize;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
+use thiserror::Error;
 
 #[derive(Serialize, Deserialize, Hash, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TableName(pub String);
@@ -108,30 +108,48 @@ pub enum SelectError {
     TableNotFound(TableName),
 }
 
-#[derive(Debug, PartialEq)]
-pub enum TypeError {
+#[derive(Error, Debug, PartialEq)]
+pub enum InsertError {
+    #[error("{0}")]
+    TypeError(TypeError),
+    #[error("table not found: {0}")]
     TableNotFound(TableName),
+}
+
+#[derive(Debug, Error, PartialEq)]
+pub enum TypeError {
+    #[error("table not found: {0}")]
+    TableNotFound(TableName),
+    #[error("column {column_name:} not found in table {table_name:}")]
     ColumnNotFound {
         table_name: TableName,
         column_name: ColumnName,
     },
+    #[error(
+        "type mismatch in column {column_name:} in table {table_name:}: {left:?} vs {right:?}"
+    )]
     ColumnMismatch {
         table_name: TableName,
         column_name: ColumnName,
         left: ScalarType,
         right: ScalarType,
     },
+    #[error("missing column {column_name:} when inserting into table {table_name:}")]
     MissingColumnInInput {
         table_name: TableName,
         column_name: ColumnName,
     },
+    #[error("expected type {expected_type:?} but found value {input_value:}")]
     TypeMismatchInInput {
         expected_type: Type,
         input_value: Value,
     },
-    UnknownScalarTypeForValue {
-        value: Value,
-    },
+    #[error("unknown scalar type for value {value:}")]
+    UnknownScalarTypeForValue { value: Value },
+    #[error("constructor not specified when inserting into table {table:}")]
+    ConstructorNotSpecified { table: TableName },
+    #[error("constructor specified when inserting into table {table:} but it is not required")]
+    ConstructorSpecifiedButNotRequired { table: TableName },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

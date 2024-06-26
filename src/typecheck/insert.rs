@@ -1,5 +1,8 @@
 use crate::typecheck::{column::typecheck_column, scalar::typecheck_scalar};
-use crate::types::{Columns, Insert, InsertValue, Table, TableName, TypeError};
+use crate::types::{
+    ColumnName, Columns, Insert, InsertValue, ScalarType, Table, TableName, TypeError,
+};
+use serde_json::Value;
 use std::collections::BTreeMap;
 
 fn get_table<'a>(
@@ -20,25 +23,47 @@ pub fn typecheck_insert(
 
     match (&insert.value, &table.columns) {
         (InsertValue::Single { values }, Columns::SingleConstructor(columns)) => {
-            let mut typecheck_columns = BTreeMap::new();
-
-            for column_name in columns.keys() {
-                let (_, column_type) = typecheck_column(table, column_name)?;
-                let value =
-                    values
-                        .get(column_name)
-                        .ok_or_else(|| TypeError::MissingColumnInInput {
-                            column_name: column_name.clone(),
-                            table_name: insert.table.clone(),
-                        })?;
-                typecheck_scalar(value, &column_type)?;
-                typecheck_columns.insert(column_name, column_type);
-            }
-
-            Ok(())
+            check_values_against_column(table, columns, values)
         }
-        _ => todo!("poo!"),
+        (
+            InsertValue::Multiple {
+                constructor,
+                values,
+            },
+            Columns::MultipleConstructors(constructors),
+        ) => {
+            let columns = constructors.get(constructor).unwrap();
+            check_values_against_column(table, columns, values)
+        }
+        (InsertValue::Single { .. }, Columns::MultipleConstructors(_)) => {
+            Err(TypeError::ConstructorNotSpecified {
+                table: table.name.clone(),
+            })
+        }
+        (InsertValue::Multiple { .. }, Columns::SingleConstructor(_)) => {
+            Err(TypeError::ConstructorSpecifiedButNotRequired {
+                table: table.name.clone(),
+            })
+        }
     }
+}
+
+fn check_values_against_column(
+    table: &Table,
+    columns: &BTreeMap<ColumnName, ScalarType>,
+    values: &BTreeMap<ColumnName, Value>,
+) -> Result<(), TypeError> {
+    for column_name in columns.keys() {
+        let (_, column_type) = typecheck_column(table, column_name)?;
+        let value = values
+            .get(column_name)
+            .ok_or_else(|| TypeError::MissingColumnInInput {
+                column_name: column_name.clone(),
+                table_name: table.name.clone(),
+            })?;
+        typecheck_scalar(value, &column_type)?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
