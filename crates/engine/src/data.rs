@@ -1,5 +1,5 @@
 //! functions for smashing stuff into `RocksDB`
-use super::types::{Insert, InsertValue, Table, TableName};
+use engine_core::{Insert, InsertValue, Table, TableName};
 use rocksdb::DB;
 use serde_json::Value;
 

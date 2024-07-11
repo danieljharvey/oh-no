@@ -97,6 +97,7 @@
             pkgs.llvmPackages.clang
             pkgs.llvmPackages.libclang
 
+            pkgs.cargo-machete
             pkgs.rustfmt
             pkgs.just
             pkgs.rust-analyzer

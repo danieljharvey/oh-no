@@ -3,3 +3,7 @@ watch:
 
 format:
   cargo fmt --all
+
+machete:
+  cargo machete
+
