@@ -1,6 +1,6 @@
 use super::data::lookup_table;
-use super::typecheck::select::typecheck_select;
-use super::types::{
+use engine_core::typecheck_select;
+use engine_core::{
     and, equals, ColumnName, Expression, Function, Select, SelectColumns, SelectError,
 };
 use rocksdb::DB;
@@ -139,11 +139,11 @@ fn apply_expression(result: &serde_json::Value, expression: &Expression) -> Expr
 
 #[cfg(test)]
 mod testing {
-    use super::super::data::insert_table;
-    use super::{empty_where, select};
-    use crate::types::{
-        and, equals, ColumnName, Columns, Constructor, Expression, Insert, InsertValue, ScalarType,
-        Select, SelectColumns, SelectError, Table, TableName, TypeError,
+    use crate::data::insert_table;
+    use crate::query::select;
+    use engine_core::{
+        and, empty_where, equals, ColumnName, Columns, Constructor, Expression, Insert,
+        InsertValue, ScalarType, Select, SelectColumns, SelectError, Table, TableName, TypeError,
     };
     use rocksdb::{Options, DB};
     use serde_json::Value;

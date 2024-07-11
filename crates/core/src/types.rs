@@ -1,9 +1,8 @@
-use core::fmt;
-use core::fmt::Display;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
-use thiserror::Error;
+use std::fmt;
+use std::fmt::Display;
 
 #[derive(Serialize, Deserialize, Hash, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TableName(pub String);
@@ -108,7 +107,7 @@ pub enum SelectError {
     TableNotFound(TableName),
 }
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(thiserror::Error, Debug, PartialEq)]
 pub enum InsertError {
     #[error("{0}")]
     TypeError(TypeError),
@@ -116,7 +115,7 @@ pub enum InsertError {
     TableNotFound(TableName),
 }
 
-#[derive(Debug, Error, PartialEq)]
+#[derive(Debug, thiserror::Error, PartialEq)]
 pub enum TypeError {
     #[error("table not found: {0}")]
     TableNotFound(TableName),
