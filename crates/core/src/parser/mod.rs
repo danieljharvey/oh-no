@@ -1,4 +1,4 @@
-use crate::types::{ColumnName, Constructor, TableName};
+use crate::types::{ColumnName, Constructor, SelectColumns, TableName};
 
 use nom::{
     branch::alt,
@@ -8,7 +8,7 @@ use nom::{
     combinator::recognize,
     error::ParseError,
     multi::many0_count,
-    sequence::pair,
+    sequence::{pair, preceded, terminated},
     IResult,
 };
 
@@ -78,5 +78,65 @@ fn test_column_name() {
     assert_eq!(
         column_name("horse"),
         Ok(("", ColumnName("horse".to_string())))
+    );
+}
+
+pub fn select_columns(input: &str) -> IResult<&str, SelectColumns> {
+    alt((select_just_columns, select_constructor))(input)
+}
+// `name,age,title`
+pub fn select_just_columns(input: &str) -> IResult<&str, SelectColumns> {
+    map(
+        nom::multi::separated_list1(tag(","), column_name),
+        |columns| SelectColumns::SelectColumns { columns },
+    )(input)
+}
+
+// `RGB{red,green,blue`
+pub fn select_constructor(input: &str) -> IResult<&str, SelectColumns> {
+    map(
+        pair(
+            constructor,
+            preceded(
+                tag("{"),
+                terminated(nom::multi::separated_list1(tag(","), column_name), tag("}")),
+            ),
+        ),
+        |(constructor, columns)| SelectColumns::SelectConstructor {
+            constructor,
+            columns,
+        },
+    )(input)
+}
+
+#[test]
+fn test_select_columns() {
+    assert_eq!(
+        select_columns("RGB{red,green,blue}"),
+        Ok((
+            "",
+            SelectColumns::SelectConstructor {
+                constructor: Constructor("RGB".to_string()),
+                columns: vec![
+                    ColumnName("red".to_string()),
+                    ColumnName("green".to_string()),
+                    ColumnName("blue".to_string())
+                ]
+            }
+        ))
+    );
+
+    assert_eq!(
+        select_columns("horse,course,eggs"),
+        Ok((
+            "",
+            SelectColumns::SelectColumns {
+                columns: vec![
+                    ColumnName("horse".to_string()),
+                    ColumnName("course".to_string()),
+                    ColumnName("eggs".to_string())
+                ]
+            }
+        ))
     );
 }
