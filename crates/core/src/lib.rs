@@ -8,6 +8,6 @@ pub use typecheck::{
 };
 pub use types::{
     and, bool_expr, equals, ColumnName, Columns, Comparison, Constructor, Expression, Function,
-    Insert, InsertError, InsertValue, ScalarType, Select, SelectColumns, SelectError, Table,
-    TableName, TypeError,
+    Insert, InsertError, InsertValue, ScalarType, ScalarValue, Select, SelectColumns, SelectError,
+    Table, TableName, TypeError,
 };

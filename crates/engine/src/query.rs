@@ -1,7 +1,8 @@
 use super::data::lookup_table;
 use engine_core::typecheck_select;
 use engine_core::{
-    and, equals, ColumnName, Comparison, Expression, Function, Select, SelectColumns, SelectError,
+    and, equals, ColumnName, Comparison, Expression, Function, ScalarValue, Select, SelectColumns,
+    SelectError,
 };
 use rocksdb::DB;
 use serde_json::Value;
@@ -38,7 +39,7 @@ fn add_constructor_to_expression(
                 r#where,
                 equals(
                     ColumnName("_type".to_string()),
-                    serde_json::Value::String(constructor.to_string()),
+                    ScalarValue::String(constructor.to_string()),
                 ),
             ),
             columns,
@@ -107,13 +108,22 @@ fn bool_expr(bool: bool) -> Expression {
     Expression::Bool(bool)
 }
 
+fn to_serde_json(scalar_value: &ScalarValue) -> serde_json::Value {
+    match scalar_value {
+        ScalarValue::Int(i) => serde_json::Value::Number(serde_json::Number::from(*i)),
+        ScalarValue::Bool(b) => serde_json::Value::Bool(*b),
+        ScalarValue::String(s) => serde_json::Value::String(s.clone()),
+    }
+}
+
 // given a row and an expression, evaluate it
 fn apply_expression(result: &serde_json::Value, expression: &Expression) -> Expression {
     match expression {
         Expression::Comparison(Comparison { column, value }) => {
             let json_object = result.as_object().unwrap();
             let column_value = json_object.get(&column.to_string()).unwrap();
-            bool_expr(column_value == value)
+            let json_value = to_serde_json(value);
+            bool_expr(*column_value == json_value)
         }
         Expression::BinaryFunction {
             function,
@@ -138,7 +148,7 @@ mod testing {
     use crate::query::select;
     use engine_core::{
         and, empty_where, equals, ColumnName, Columns, Constructor, Insert, InsertValue,
-        ScalarType, Select, SelectColumns, SelectError, Table, TableName, TypeError,
+        ScalarType, ScalarValue, Select, SelectColumns, SelectError, Table, TableName, TypeError,
     };
     use rocksdb::{Options, DB};
     use serde_json::Value;
@@ -337,10 +347,7 @@ mod testing {
                     Select {
                         table: TableName("user".to_string()),
                         columns: SelectColumns::SelectColumns { columns: vec![] },
-                        r#where: equals(
-                            ColumnName("missing".to_string()),
-                            serde_json::Value::Bool(true)
-                        )
+                        r#where: equals(ColumnName("missing".to_string()), ScalarValue::Bool(true))
                     }
                 ),
                 Err(SelectError::TypeError(TypeError::ColumnNotFound {
@@ -400,11 +407,8 @@ mod testing {
                             columns: vec![ColumnName("name".to_string())]
                         },
                         r#where: and(
-                            equals(ColumnName("nice".to_string()), Value::Bool(true)),
-                            equals(
-                                ColumnName("age".to_string()),
-                                Value::Number(serde_json::Number::from(100))
-                            )
+                            equals(ColumnName("nice".to_string()), ScalarValue::Bool(true)),
+                            equals(ColumnName("age".to_string()), ScalarValue::Int(100))
                         )
                     }
                 ),

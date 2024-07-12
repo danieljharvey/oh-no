@@ -1,5 +1,7 @@
 use crate::empty_where;
-use crate::types::{ColumnName, Constructor, Select, SelectColumns, TableName};
+use crate::types::{
+    ColumnName, Comparison, Constructor, Expression, ScalarValue, Select, SelectColumns, TableName,
+};
 
 use nom::{
     branch::alt,
@@ -8,7 +10,8 @@ use nom::{
     combinator::map,
     combinator::recognize,
     error::ParseError,
-    multi::many0_count,
+    multi::{many0, many0_count},
+    number::{complete::i32, Endianness},
     sequence::{pair, preceded, terminated},
     IResult,
 };
@@ -171,4 +174,58 @@ fn test_select() {
             }
         ))
     )
+}
+
+fn bool(input: &str) -> IResult<&str, bool> {
+    alt((map(tag("true"), |_| true), map(tag("false"), |_| false)))(input)
+}
+
+fn scalar_value(input: &str) -> IResult<&str, ScalarValue> {
+    let parse_bool = map(bool, ScalarValue::Bool);
+    let parse_int = map(i32(Endianness::Big), ScalarValue::Int);
+    let parse_string = map(
+        preceded(tag("\""), terminated(many0(alphanumeric1), tag("\""))),
+        |str| ScalarValue::String(str.to_string()),
+    );
+    alt((parse_bool, alt((parse_int, parse_string))))(input)
+}
+
+/*
+fn comparison(input: &str) -> IResult<&str, Comparison> {
+    pair(column_name,preceded(tag("="),
+}
+
+#[test]
+fn test_comparison() {
+    assert_eq!(
+        comparison("alive=true"),
+        Ok((
+            "",
+            Comparison {
+                column: ColumnName("alive".to_string()),
+                value: serde_json::Value::Bool(true)
+            }
+        ))
+    );
+}
+*/
+
+fn expression(input: &str) -> IResult<&str, Expression> {
+    map(bool, Expression::Bool)(input)
+}
+
+#[test]
+fn test_expression() {
+    assert_eq!(expression("true"), Ok(("", Expression::Bool(true))));
+    assert_eq!(expression("false"), Ok(("", Expression::Bool(false))));
+    assert_eq!(
+        expression("alive=true"),
+        Ok((
+            "",
+            Expression::Comparison(Comparison {
+                column: ColumnName("alive".to_string()),
+                value: ScalarValue::Bool(true)
+            })
+        ))
+    );
 }

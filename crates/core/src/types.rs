@@ -88,10 +88,10 @@ pub enum Expression {
 #[derive(Debug, PartialEq)]
 pub struct Comparison {
     pub column: ColumnName,
-    pub value: serde_json::Value,
+    pub value: ScalarValue,
 }
 
-pub fn equals(column: ColumnName, value: serde_json::Value) -> Expression {
+pub fn equals(column: ColumnName, value: ScalarValue) -> Expression {
     Expression::Comparison(Comparison { column, value })
 }
 
@@ -162,6 +162,13 @@ pub enum ScalarType {
     String,
     Bool,
     Int,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum ScalarValue {
+    String(String),
+    Bool(bool),
+    Int(i32),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
