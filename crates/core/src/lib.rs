@@ -7,7 +7,7 @@ pub use typecheck::{
     select::{empty_where, typecheck_select},
 };
 pub use types::{
-    and, bool_expr, equals, ColumnName, Columns, Constructor, Expression, Function, Insert,
-    InsertError, InsertValue, ScalarType, Select, SelectColumns, SelectError, Table, TableName,
-    TypeError,
+    and, bool_expr, equals, ColumnName, Columns, Comparison, Constructor, Expression, Function,
+    Insert, InsertError, InsertValue, ScalarType, Select, SelectColumns, SelectError, Table,
+    TableName, TypeError,
 };

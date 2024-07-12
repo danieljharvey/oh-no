@@ -71,14 +71,13 @@ pub struct Insert {
 
 #[derive(Debug, PartialEq)]
 pub enum Function {
-    Equals,
     And,
 }
 
 #[derive(Debug, PartialEq)]
 pub enum Expression {
-    Column(ColumnName),
-    Const(serde_json::Value),
+    Comparison(Comparison),
+    Bool(bool),
     BinaryFunction {
         function: Function,
         expr_left: Box<Expression>,
@@ -86,12 +85,14 @@ pub enum Expression {
     },
 }
 
-pub fn equals(left: Expression, right: Expression) -> Expression {
-    Expression::BinaryFunction {
-        function: Function::Equals,
-        expr_left: Box::new(left),
-        expr_right: Box::new(right),
-    }
+#[derive(Debug, PartialEq)]
+pub struct Comparison {
+    pub column: ColumnName,
+    pub value: serde_json::Value,
+}
+
+pub fn equals(column: ColumnName, value: serde_json::Value) -> Expression {
+    Expression::Comparison(Comparison { column, value })
 }
 
 pub fn and(left: Expression, right: Expression) -> Expression {
@@ -100,6 +101,10 @@ pub fn and(left: Expression, right: Expression) -> Expression {
         expr_left: Box::new(left),
         expr_right: Box::new(right),
     }
+}
+
+pub fn bool_expr(bool: bool) -> Expression {
+    Expression::Bool(bool)
 }
 
 #[derive(Debug, PartialEq)]
@@ -175,8 +180,4 @@ pub struct Table {
 pub enum Columns {
     SingleConstructor(BTreeMap<ColumnName, ScalarType>),
     MultipleConstructors(BTreeMap<Constructor, BTreeMap<ColumnName, ScalarType>>),
-}
-
-pub fn bool_expr(bool: bool) -> Expression {
-    Expression::Const(serde_json::Value::Bool(bool))
 }

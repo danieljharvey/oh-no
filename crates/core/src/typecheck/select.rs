@@ -1,11 +1,12 @@
 use super::column::typecheck_column;
 use crate::types::{
-    ColumnName, Columns, Expression, Select, SelectColumns, Table, TableName, Type, TypeError,
+    ColumnName, Columns, Comparison, Expression, Select, SelectColumns, Table, TableName, Type,
+    TypeError,
 };
 use std::collections::BTreeMap;
 
 pub fn empty_where() -> Expression {
-    Expression::Const(serde_json::Value::Bool(true))
+    Expression::Bool(true)
 }
 
 // does this query even make sense?
@@ -38,11 +39,11 @@ pub fn typecheck_select(
 // we don't 'learn' anything, just explode or don't
 fn typecheck_expression(table: &Table, expression: &Expression) -> Result<(), TypeError> {
     match expression {
-        Expression::Column(column_name) => match &table.columns {
-            Columns::SingleConstructor(columns) => match columns.get(column_name) {
+        Expression::Comparison(Comparison { column, .. }) => match &table.columns {
+            Columns::SingleConstructor(columns) => match columns.get(column) {
                 Some(_) => Ok(()),
                 None => Err(TypeError::ColumnNotFound {
-                    column_name: column_name.clone(),
+                    column_name: column.clone(),
                     table_name: table.name.clone(),
                 }),
             },
@@ -57,6 +58,6 @@ fn typecheck_expression(table: &Table, expression: &Expression) -> Result<(), Ty
             typecheck_expression(table, expr_right)?;
             Ok(())
         }
-        Expression::Const(_) => Ok(()),
+        Expression::Bool(_) => Ok(()),
     }
 }

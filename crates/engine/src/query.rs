@@ -1,7 +1,7 @@
 use super::data::lookup_table;
 use engine_core::typecheck_select;
 use engine_core::{
-    and, equals, ColumnName, Expression, Function, Select, SelectColumns, SelectError,
+    and, equals, ColumnName, Comparison, Expression, Function, Select, SelectColumns, SelectError,
 };
 use rocksdb::DB;
 use serde_json::Value;
@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use std::str::FromStr;
 
 pub fn empty_where() -> Expression {
-    Expression::Const(serde_json::Value::Bool(true))
+    Expression::Bool(true)
 }
 
 fn matches_prefix(prefix: &str, key: &[u8]) -> bool {
@@ -37,8 +37,8 @@ fn add_constructor_to_expression(
             and(
                 r#where,
                 equals(
-                    Expression::Column(ColumnName("_type".to_string())),
-                    Expression::Const(serde_json::Value::String(constructor.to_string())),
+                    ColumnName("_type".to_string()),
+                    serde_json::Value::String(constructor.to_string()),
                 ),
             ),
             columns,
@@ -100,31 +100,26 @@ pub fn select(db: &DB, select: Select) -> Result<Vec<(usize, Value)>, SelectErro
 }
 
 fn is_true(expression: &Expression) -> bool {
-    matches!(expression, Expression::Const(serde_json::Value::Bool(true)))
+    matches!(expression, Expression::Bool(true))
 }
 
 fn bool_expr(bool: bool) -> Expression {
-    Expression::Const(serde_json::Value::Bool(bool))
+    Expression::Bool(bool)
 }
 
 // given a row and an expression, evaluate it
 fn apply_expression(result: &serde_json::Value, expression: &Expression) -> Expression {
     match expression {
-        Expression::Column(column_name) => {
+        Expression::Comparison(Comparison { column, value }) => {
             let json_object = result.as_object().unwrap();
-            let inner = json_object.get(&column_name.to_string()).unwrap();
-            Expression::Const(inner.clone())
+            let column_value = json_object.get(&column.to_string()).unwrap();
+            bool_expr(column_value == value)
         }
         Expression::BinaryFunction {
             function,
             expr_left,
             expr_right,
         } => match function {
-            Function::Equals => {
-                let left2 = apply_expression(result, expr_left);
-                let right2 = apply_expression(result, expr_right);
-                bool_expr(left2 == right2)
-            }
             Function::And => {
                 if is_true(&apply_expression(result, expr_left)) {
                     apply_expression(result, expr_right)
@@ -133,7 +128,7 @@ fn apply_expression(result: &serde_json::Value, expression: &Expression) -> Expr
                 }
             }
         },
-        Expression::Const(value) => Expression::Const(value.clone()),
+        Expression::Bool(bool) => Expression::Bool(*bool),
     }
 }
 
@@ -142,8 +137,8 @@ mod testing {
     use crate::data::insert_table;
     use crate::query::select;
     use engine_core::{
-        and, empty_where, equals, ColumnName, Columns, Constructor, Expression, Insert,
-        InsertValue, ScalarType, Select, SelectColumns, SelectError, Table, TableName, TypeError,
+        and, empty_where, equals, ColumnName, Columns, Constructor, Insert, InsertValue,
+        ScalarType, Select, SelectColumns, SelectError, Table, TableName, TypeError,
     };
     use rocksdb::{Options, DB};
     use serde_json::Value;
@@ -342,7 +337,10 @@ mod testing {
                     Select {
                         table: TableName("user".to_string()),
                         columns: SelectColumns::SelectColumns { columns: vec![] },
-                        r#where: Expression::Column(ColumnName("missing".to_string()))
+                        r#where: equals(
+                            ColumnName("missing".to_string()),
+                            serde_json::Value::Bool(true)
+                        )
                     }
                 ),
                 Err(SelectError::TypeError(TypeError::ColumnNotFound {
@@ -402,10 +400,10 @@ mod testing {
                             columns: vec![ColumnName("name".to_string())]
                         },
                         r#where: and(
-                            Expression::Column(ColumnName("nice".to_string())),
+                            equals(ColumnName("nice".to_string()), Value::Bool(true)),
                             equals(
-                                Expression::Column(ColumnName("age".to_string())),
-                                Expression::Const(Value::Number(serde_json::Number::from(100)))
+                                ColumnName("age".to_string()),
+                                Value::Number(serde_json::Number::from(100))
                             )
                         )
                     }
