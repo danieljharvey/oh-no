@@ -1,4 +1,5 @@
-use crate::types::{ColumnName, Constructor, SelectColumns, TableName};
+use crate::empty_where;
+use crate::types::{ColumnName, Constructor, Select, SelectColumns, TableName};
 
 use nom::{
     branch::alt,
@@ -139,4 +140,35 @@ fn test_select_columns() {
             }
         ))
     );
+}
+
+fn select(input: &str) -> IResult<&str, Select> {
+    map(
+        pair(
+            preceded(tag("select "), select_columns),
+            preceded(tag(" from "), table_name),
+        ),
+        |(select_columns, table_name)| Select {
+            table: table_name,
+            columns: select_columns,
+            r#where: empty_where(),
+        },
+    )(input)
+}
+
+#[test]
+fn test_select() {
+    assert_eq!(
+        select("select id,name from users"),
+        Ok((
+            "",
+            Select {
+                table: TableName("users".to_string()),
+                columns: SelectColumns::SelectColumns {
+                    columns: vec![ColumnName("id".to_string()), ColumnName("name".to_string())]
+                },
+                r#where: empty_where()
+            }
+        ))
+    )
 }

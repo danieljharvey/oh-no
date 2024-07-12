@@ -31,6 +31,7 @@ impl Display for Constructor {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Select {
     pub table: TableName,
     pub columns: SelectColumns,
