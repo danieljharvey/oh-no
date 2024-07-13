@@ -3,7 +3,7 @@ use crate::types::{ColumnName, Constructor, TableName};
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while1},
-    character::complete::{alpha1, alphanumeric1, multispace0},
+    character::complete::{alphanumeric1, multispace0},
     combinator::map,
     combinator::recognize,
     error::ParseError,
@@ -38,7 +38,7 @@ fn lowercase_char<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'
 pub fn table_name(input: &str) -> IResult<&str, TableName> {
     map(
         ws(recognize(pair(
-            alpha1,
+            uppercase_char,
             many0_count(alt((alphanumeric1, tag("_")))),
         ))),
         |ident: &str| TableName(ident.to_string()),
@@ -48,15 +48,16 @@ pub fn table_name(input: &str) -> IResult<&str, TableName> {
 #[test]
 fn test_table_name() {
     assert!(table_name("123horse").is_err());
+    assert!(table_name("horse").is_err());
 
     assert_eq!(
-        table_name("horse"),
-        Ok(("", TableName("horse".to_string())))
+        table_name("Horse"),
+        Ok(("", TableName("Horse".to_string())))
     );
 
     assert_eq!(
-        table_name(" horse"),
-        Ok(("", TableName("horse".to_string())))
+        table_name(" Horse"),
+        Ok(("", TableName("Horse".to_string())))
     );
 }
 

@@ -75,11 +75,11 @@ mod tests {
     #[test]
     fn test_select() {
         assert_eq!(
-            parse_select("select id, name from users"),
+            parse_select("select id, name from Users"),
             Ok((
                 "",
                 Select {
-                    table: TableName("users".to_string()),
+                    table: TableName("Users".to_string()),
                     columns: SelectColumns::SelectColumns {
                         columns: vec![ColumnName("id".to_string()), ColumnName("name".to_string())]
                     },
@@ -88,11 +88,11 @@ mod tests {
             ))
         );
         assert_eq!(
-            parse_select("select id, name from users where user_id=100"),
+            parse_select("select id, name from Users where user_id=100"),
             Ok((
                 "",
                 Select {
-                    table: TableName("users".to_string()),
+                    table: TableName("Users".to_string()),
                     columns: SelectColumns::SelectColumns {
                         columns: vec![ColumnName("id".to_string()), ColumnName("name".to_string())]
                     },
