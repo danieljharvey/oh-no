@@ -144,8 +144,8 @@ fn apply_expression(result: &serde_json::Value, expression: &Expression) -> Expr
 
 #[cfg(test)]
 mod testing {
+    use super::select;
     use crate::data::insert_table;
-    use crate::query::select;
     use engine_core::{
         ColumnName, Columns, Constructor, Insert, InsertValue, ScalarType, SelectError, Table,
         TableName, TypeError,
