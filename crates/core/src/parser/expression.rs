@@ -1,20 +1,15 @@
-use crate::empty_where;
-use crate::types::{
-    ColumnName, Comparison, Constructor, Expression, Function, ScalarValue, Select, SelectColumns,
-    TableName,
-};
+use crate::types::{Comparison, Expression, Function, ScalarValue};
 
 use super::identifiers::{column_name, ws};
 
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take_while1},
+    bytes::complete::tag,
+    character::complete::alphanumeric1,
     character::complete::i32,
-    character::complete::{alpha1, alphanumeric1, multispace0},
+    combinator::map,
     combinator::recognize,
-    combinator::{map, opt},
-    error::ParseError,
-    multi::{many0, many0_count},
+    multi::many0,
     sequence::{pair, preceded, terminated},
     IResult,
 };
@@ -39,36 +34,11 @@ fn scalar_value(input: &str) -> IResult<&str, ScalarValue> {
     alt((parse_bool, alt((parse_int, parse_string))))(input)
 }
 
-#[test]
-fn test_scalar_value() {
-    assert_eq!(scalar_value("  false"), Ok(("", ScalarValue::Bool(false))));
-    assert_eq!(scalar_value("   true"), Ok(("", ScalarValue::Bool(true))));
-    assert_eq!(scalar_value("  100"), Ok(("", ScalarValue::Int(100))));
-    assert_eq!(
-        scalar_value("     \"dog\""),
-        Ok(("", ScalarValue::String("dog".to_string())))
-    );
-}
-
 fn comparison(input: &str) -> IResult<&str, Comparison> {
     map(
         pair(column_name, preceded(ws(tag("=")), scalar_value)),
         |(column, value)| Comparison { column, value },
     )(input)
-}
-
-#[test]
-fn test_comparison() {
-    assert_eq!(
-        comparison("alive =   true"),
-        Ok((
-            "",
-            Comparison {
-                column: ColumnName("alive".to_string()),
-                value: ScalarValue::Bool(true)
-            }
-        ))
-    );
 }
 
 fn function(input: &str) -> IResult<&str, Function> {
@@ -104,35 +74,65 @@ pub fn expression(input: &str) -> IResult<&str, Expression> {
     alt((parse_binary, alt((parse_bool, parse_comparison))))(input)
 }
 
-#[test]
-fn test_expression() {
-    assert_eq!(expression("true"), Ok(("", Expression::Bool(true))));
-    assert_eq!(expression("false"), Ok(("", Expression::Bool(false))));
-    assert_eq!(
-        expression("alive =  true"),
-        Ok((
-            "",
-            Expression::Comparison(Comparison {
-                column: ColumnName("alive".to_string()),
-                value: ScalarValue::Bool(true)
-            })
-        ))
-    );
-    assert_eq!(
-        expression("  alive = true   &&  dog =   100"),
-        Ok((
-            "",
-            Expression::BinaryFunction {
-                function: Function::And,
-                expr_left: Box::new(Expression::Comparison(Comparison {
+#[cfg(test)]
+mod tests {
+    use super::{comparison, expression, scalar_value};
+    use crate::{ColumnName, Comparison, Expression, Function, ScalarValue};
+    #[test]
+    fn test_expression() {
+        assert_eq!(expression("true"), Ok(("", Expression::Bool(true))));
+        assert_eq!(expression("false"), Ok(("", Expression::Bool(false))));
+        assert_eq!(
+            expression("alive =  true"),
+            Ok((
+                "",
+                Expression::Comparison(Comparison {
                     column: ColumnName("alive".to_string()),
                     value: ScalarValue::Bool(true)
-                })),
-                expr_right: Box::new(Expression::Comparison(Comparison {
-                    column: ColumnName("dog".to_string()),
-                    value: ScalarValue::Int(100)
-                }))
-            }
-        ))
-    );
+                })
+            ))
+        );
+        assert_eq!(
+            expression("  alive = true   &&  dog =   100"),
+            Ok((
+                "",
+                Expression::BinaryFunction {
+                    function: Function::And,
+                    expr_left: Box::new(Expression::Comparison(Comparison {
+                        column: ColumnName("alive".to_string()),
+                        value: ScalarValue::Bool(true)
+                    })),
+                    expr_right: Box::new(Expression::Comparison(Comparison {
+                        column: ColumnName("dog".to_string()),
+                        value: ScalarValue::Int(100)
+                    }))
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_scalar_value() {
+        assert_eq!(scalar_value("  false"), Ok(("", ScalarValue::Bool(false))));
+        assert_eq!(scalar_value("   true"), Ok(("", ScalarValue::Bool(true))));
+        assert_eq!(scalar_value("  100"), Ok(("", ScalarValue::Int(100))));
+        assert_eq!(
+            scalar_value("     \"dog\""),
+            Ok(("", ScalarValue::String("dog".to_string())))
+        );
+    }
+
+    #[test]
+    fn test_comparison() {
+        assert_eq!(
+            comparison("alive =   true"),
+            Ok((
+                "",
+                Comparison {
+                    column: ColumnName("alive".to_string()),
+                    value: ScalarValue::Bool(true)
+                }
+            ))
+        );
+    }
 }

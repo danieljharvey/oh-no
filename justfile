@@ -7,3 +7,6 @@ format:
 machete:
   cargo machete
 
+fix:
+  cargo clippy --fix --no-deps --allow-dirty
+

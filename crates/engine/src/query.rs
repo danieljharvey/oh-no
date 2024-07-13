@@ -172,7 +172,7 @@ mod testing {
         constructors.insert(Constructor("dog".to_string()), pet_columns);
 
         insert_table(
-            &db,
+            db,
             &Table {
                 name: TableName("pet".to_string()),
                 columns: Columns::MultipleConstructors(constructors),
@@ -187,7 +187,7 @@ mod testing {
         );
 
         let _ = crate::insert::insert(
-            &db,
+            db,
             &Insert {
                 table: TableName("pet".to_string()),
                 key: 1,
@@ -207,7 +207,7 @@ mod testing {
         dog_row.insert(ColumnName("likes_stick".to_string()), Value::Bool(true));
 
         let _ = crate::insert::insert(
-            &db,
+            db,
             &Insert {
                 table: TableName("pet".to_string()),
                 key: 2,
@@ -228,7 +228,7 @@ mod testing {
         user_columns.insert(ColumnName("name".to_string()), ScalarType::String);
 
         insert_table(
-            &db,
+            db,
             &Table {
                 name: TableName("user".to_string()),
                 columns: Columns::SingleConstructor(user_columns),
@@ -241,7 +241,7 @@ mod testing {
         user_row_1.insert(ColumnName("name".to_string()), Value::String("Egg".into()));
 
         let _ = crate::insert::insert(
-            &db,
+            db,
             &Insert {
                 table: TableName("user".to_string()),
                 key: 1,
@@ -258,7 +258,7 @@ mod testing {
         );
 
         let _ = crate::insert::insert(
-            &db,
+            db,
             &Insert {
                 table: TableName("user".to_string()),
                 key: 2,
@@ -272,7 +272,7 @@ mod testing {
         user_row_3.insert(ColumnName("name".to_string()), Value::String("Log".into()));
 
         let _ = crate::insert::insert(
-            &db,
+            db,
             &Insert {
                 table: TableName("user".to_string()),
                 key: 3,
@@ -302,7 +302,7 @@ mod testing {
                     }
                 ),
                 Err(SelectError::TableNotFound(TableName("missing".to_string())))
-            )
+            );
         }
         let _ = DB::destroy(&Options::default(), path);
     }
@@ -329,7 +329,7 @@ mod testing {
                     column_name: ColumnName("missing".to_string()),
                     table_name: TableName("user".to_string())
                 }))
-            )
+            );
         }
         let _ = DB::destroy(&Options::default(), path);
     }
@@ -354,7 +354,7 @@ mod testing {
                     column_name: ColumnName("missing".to_string()),
                     table_name: TableName("user".to_string())
                 }))
-            )
+            );
         }
         let _ = DB::destroy(&Options::default(), path);
     }

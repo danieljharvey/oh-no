@@ -1,19 +1,17 @@
-use crate::empty_where;
 use crate::types::{
-    ColumnName, Comparison, Constructor, Expression, Function, ScalarValue, Select, SelectColumns,
+    ColumnName, Constructor,
     TableName,
 };
 
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while1},
-    character::complete::i32,
     character::complete::{alpha1, alphanumeric1, multispace0},
     combinator::recognize,
-    combinator::{map, opt},
+    combinator::{map},
     error::ParseError,
-    multi::{many0, many0_count},
-    sequence::{pair, preceded, terminated},
+    multi::{many0_count},
+    sequence::{pair, preceded},
     IResult,
 };
 
@@ -52,7 +50,7 @@ pub fn table_name(input: &str) -> IResult<&str, TableName> {
 
 #[test]
 fn test_table_name() {
-    assert_eq!(matches!(table_name("123horse"), Err(_)), true);
+    assert!(table_name("123horse").is_err());
 
     assert_eq!(
         table_name("horse"),
@@ -77,7 +75,7 @@ pub fn constructor(input: &str) -> IResult<&str, Constructor> {
 
 #[test]
 fn test_constructor() {
-    assert_eq!(matches!(constructor("horse"), Err(_)), true);
+    assert!(constructor("horse").is_err());
 
     assert_eq!(
         constructor(" Horse"),
@@ -102,7 +100,7 @@ pub fn column_name(input: &str) -> IResult<&str, ColumnName> {
 
 #[test]
 fn test_column_name() {
-    assert_eq!(matches!(column_name("Horse"), Err(_)), true);
+    assert!(column_name("Horse").is_err());
 
     assert_eq!(
         column_name(" horse"),

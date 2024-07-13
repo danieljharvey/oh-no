@@ -1,20 +1,12 @@
 use super::expression::expression;
 use super::identifiers::{column_name, constructor, table_name, ws};
 use crate::empty_where;
-use crate::types::{
-    ColumnName, Comparison, Constructor, Expression, Function, ScalarValue, Select, SelectColumns,
-    TableName,
-};
+use crate::types::{Expression, Select, SelectColumns};
 
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take_while1},
-    character::complete::i32,
-    character::complete::{alpha1, alphanumeric1, multispace0},
-    combinator::recognize,
+    bytes::complete::tag,
     combinator::{map, opt},
-    error::ParseError,
-    multi::{many0, many0_count},
     sequence::{pair, preceded, terminated},
     IResult,
 };
@@ -51,38 +43,6 @@ fn select_constructor(input: &str) -> IResult<&str, SelectColumns> {
     )(input)
 }
 
-#[test]
-fn test_select_columns() {
-    assert_eq!(
-        select_columns("RGB{ red ,  green ,  blue }"),
-        Ok((
-            "",
-            SelectColumns::SelectConstructor {
-                constructor: Constructor("RGB".to_string()),
-                columns: vec![
-                    ColumnName("red".to_string()),
-                    ColumnName("green".to_string()),
-                    ColumnName("blue".to_string())
-                ]
-            }
-        ))
-    );
-
-    assert_eq!(
-        select_columns("horse  ,    course,eggs"),
-        Ok((
-            "",
-            SelectColumns::SelectColumns {
-                columns: vec![
-                    ColumnName("horse".to_string()),
-                    ColumnName("course".to_string()),
-                    ColumnName("eggs".to_string())
-                ]
-            }
-        ))
-    );
-}
-
 pub fn select(input: &str) -> IResult<&str, Select> {
     map(
         pair(
@@ -107,35 +67,75 @@ fn r#where(input: &str) -> IResult<&str, Expression> {
     )(input)
 }
 
-#[test]
-fn test_select() {
-    assert_eq!(
-        select("select id, name from users"),
-        Ok((
-            "",
-            Select {
-                table: TableName("users".to_string()),
-                columns: SelectColumns::SelectColumns {
-                    columns: vec![ColumnName("id".to_string()), ColumnName("name".to_string())]
-                },
-                r#where: empty_where()
-            }
-        ))
-    );
-    assert_eq!(
-        select("select id, name from users where user_id=100"),
-        Ok((
-            "",
-            Select {
-                table: TableName("users".to_string()),
-                columns: SelectColumns::SelectColumns {
-                    columns: vec![ColumnName("id".to_string()), ColumnName("name".to_string())]
-                },
-                r#where: Expression::Comparison(Comparison {
-                    column: ColumnName("user_id".to_string()),
-                    value: ScalarValue::Int(100)
-                })
-            }
-        ))
-    )
+#[cfg(test)]
+mod tests {
+    use super::{select, select_columns};
+    use crate::{
+        empty_where, ColumnName, Comparison, Constructor, Expression, ScalarValue, Select,
+        SelectColumns, TableName,
+    };
+    #[test]
+    fn test_select() {
+        assert_eq!(
+            select("select id, name from users"),
+            Ok((
+                "",
+                Select {
+                    table: TableName("users".to_string()),
+                    columns: SelectColumns::SelectColumns {
+                        columns: vec![ColumnName("id".to_string()), ColumnName("name".to_string())]
+                    },
+                    r#where: empty_where()
+                }
+            ))
+        );
+        assert_eq!(
+            select("select id, name from users where user_id=100"),
+            Ok((
+                "",
+                Select {
+                    table: TableName("users".to_string()),
+                    columns: SelectColumns::SelectColumns {
+                        columns: vec![ColumnName("id".to_string()), ColumnName("name".to_string())]
+                    },
+                    r#where: Expression::Comparison(Comparison {
+                        column: ColumnName("user_id".to_string()),
+                        value: ScalarValue::Int(100)
+                    })
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_select_columns() {
+        assert_eq!(
+            select_columns("RGB{ red ,  green ,  blue }"),
+            Ok((
+                "",
+                SelectColumns::SelectConstructor {
+                    constructor: Constructor("RGB".to_string()),
+                    columns: vec![
+                        ColumnName("red".to_string()),
+                        ColumnName("green".to_string()),
+                        ColumnName("blue".to_string())
+                    ]
+                }
+            ))
+        );
+
+        assert_eq!(
+            select_columns("horse  ,    course,eggs"),
+            Ok((
+                "",
+                SelectColumns::SelectColumns {
+                    columns: vec![
+                        ColumnName("horse".to_string()),
+                        ColumnName("course".to_string()),
+                        ColumnName("eggs".to_string())
+                    ]
+                }
+            ))
+        );
+    }
 }

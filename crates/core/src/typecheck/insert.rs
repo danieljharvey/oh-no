@@ -120,7 +120,7 @@ mod tests {
                 table_name: TableName("Horses".to_string()),
                 column_name: ColumnName("age".to_string())
             })
-        )
+        );
     }
 
     #[test]
@@ -157,7 +157,7 @@ mod tests {
                 expected_type: Type::ScalarType(ScalarType::Int),
                 input_value: Value::String("dog".to_string())
             })
-        )
+        );
     }
 
     #[test]
@@ -195,6 +195,6 @@ mod tests {
                 table_name: TableName("Horses".to_string()),
                 column_name: ColumnName("age".to_string())
             })
-        )
+        );
     }
 }
