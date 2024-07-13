@@ -1,17 +1,6 @@
-use super::data::lookup_table;
-use engine_core::typecheck_select;
 use engine_core::{
-    and, equals, ColumnName, Comparison, Expression, Function, ScalarValue, Select, SelectColumns,
-    SelectError,
+    and, equals, ColumnName, Comparison, Expression, Function, ScalarValue, SelectColumns,
 };
-use rocksdb::DB;
-use serde_json::Value;
-use std::collections::BTreeMap;
-use std::str::FromStr;
-
-pub fn empty_where() -> Expression {
-    Expression::Bool(true)
-}
 
 pub fn matches_prefix(prefix: &str, key: &[u8]) -> bool {
     let key_string = std::str::from_utf8(key).unwrap();

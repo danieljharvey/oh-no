@@ -1,10 +1,7 @@
 use super::data::lookup_table;
 use super::helpers::{add_constructor_to_expression, apply_expression, is_true, matches_prefix};
 use engine_core::typecheck_select;
-use engine_core::{
-    and, equals, ColumnName, Comparison, Expression, Function, ScalarValue, Select, SelectColumns,
-    SelectError,
-};
+use engine_core::{Select, SelectError};
 use rocksdb::DB;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -136,6 +133,11 @@ mod testing {
 
         insert_table(db, &table_sql);
 
+        // todo: parser
+        // insert into user [
+        //   {age: 27, nice: false, name: "Egg"},
+        //   {age: 100, nice: true, name: "Horse"}
+        // ]
         let mut user_row_1 = BTreeMap::new();
         user_row_1.insert(ColumnName("age".to_string()), ScalarValue::Int(27));
         user_row_1.insert(ColumnName("nice".to_string()), ScalarValue::Bool(false));

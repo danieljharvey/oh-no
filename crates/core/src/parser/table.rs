@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    combinator::{map},
+    combinator::map,
     sequence::{delimited, pair, preceded},
     IResult,
 };
