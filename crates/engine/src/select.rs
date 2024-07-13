@@ -77,7 +77,7 @@ mod testing {
     }
 
     fn insert_pet_data(db: &DB) -> anyhow::Result<()> {
-        let (_,table_sql) = engine_core::parse_table("type pet { Cat { age: Int, name: String }, Dog { age: Int, name: String, likes_stick: Bool } }").expect("parse_table");
+        let (_,table_sql) = engine_core::parse_table("type Pet { Cat { age: Int, name: String }, Dog { age: Int, name: String, likes_stick: Bool } }").expect("parse_table");
 
         insert_table(db, &table_sql);
 
@@ -91,7 +91,7 @@ mod testing {
         let _ = crate::insert::insert(
             db,
             &Insert {
-                table: TableName("pet".to_string()),
+                table: TableName("Pet".to_string()),
                 key: 1,
                 value: InsertValue::Multiple {
                     constructor: Constructor("Cat".into()),
@@ -114,7 +114,7 @@ mod testing {
         let _ = crate::insert::insert(
             db,
             &Insert {
-                table: TableName("pet".to_string()),
+                table: TableName("Pet".to_string()),
                 key: 2,
                 value: InsertValue::Multiple {
                     constructor: Constructor("Dog".into()),
@@ -128,7 +128,7 @@ mod testing {
 
     fn insert_user_data(db: &DB) -> anyhow::Result<()> {
         let (_, table_sql) =
-            engine_core::parse_table("type user { age: Int, nice: Bool, name: String }")
+            engine_core::parse_table("type User { age: Int, nice: Bool, name: String }")
                 .expect("parse_table");
 
         insert_table(db, &table_sql);
@@ -149,7 +149,7 @@ mod testing {
         let _ = crate::insert::insert(
             db,
             &Insert {
-                table: TableName("user".to_string()),
+                table: TableName("User".to_string()),
                 key: 1,
                 value: InsertValue::Single { values: user_row_1 },
             },
@@ -166,7 +166,7 @@ mod testing {
         let _ = crate::insert::insert(
             db,
             &Insert {
-                table: TableName("user".to_string()),
+                table: TableName("User".to_string()),
                 key: 2,
                 value: InsertValue::Single { values: user_row_2 },
             },
@@ -183,7 +183,7 @@ mod testing {
         let _ = crate::insert::insert(
             db,
             &Insert {
-                table: TableName("user".to_string()),
+                table: TableName("User".to_string()),
                 key: 3,
                 value: InsertValue::Single { values: user_row_3 },
             },
@@ -200,11 +200,11 @@ mod testing {
             insert_test_data(&db).expect("insert test data failure");
 
             let (_, select_sql) =
-                engine_core::parse_select("select name from missing").expect("parse_select");
+                engine_core::parse_select("select name from Missing").expect("parse_select");
 
             assert_eq!(
                 select(&db, select_sql),
-                Err(SelectError::TableNotFound(TableName("missing".to_string())))
+                Err(SelectError::TableNotFound(TableName("Missing".to_string())))
             );
         }
         let _ = DB::destroy(&Options::default(), path);
@@ -218,13 +218,13 @@ mod testing {
             insert_test_data(&db).expect("insert test data failure");
 
             let (_, select_sql) =
-                engine_core::parse_select("select missing from user").expect("parse_select");
+                engine_core::parse_select("select missing from User").expect("parse_select");
 
             assert_eq!(
                 select(&db, select_sql),
                 Err(SelectError::TypeError(TypeError::ColumnNotFound {
                     column_name: ColumnName("missing".to_string()),
-                    table_name: TableName("user".to_string())
+                    table_name: TableName("User".to_string())
                 }))
             );
         }
@@ -239,14 +239,14 @@ mod testing {
             insert_test_data(&db).expect("insert test data failure");
 
             let (_, select_sql) =
-                engine_core::parse_select("select name from user where missing = true")
+                engine_core::parse_select("select name from User where missing = true")
                     .expect("parse_select");
 
             assert_eq!(
                 select(&db, select_sql),
                 Err(SelectError::TypeError(TypeError::ColumnNotFound {
                     column_name: ColumnName("missing".to_string()),
-                    table_name: TableName("user".to_string())
+                    table_name: TableName("User".to_string())
                 }))
             );
         }
@@ -267,7 +267,7 @@ mod testing {
             ];
 
             let (_, select_sql) =
-                engine_core::parse_select("select name from user").expect("parse_select");
+                engine_core::parse_select("select name from User").expect("parse_select");
 
             assert_eq!(select(&db, select_sql), Ok(expected));
         }
@@ -284,7 +284,7 @@ mod testing {
             let expected = vec![(2, serde_json::from_str("{\"name\":\"Horse\"}").unwrap())];
 
             let (_, select_sql) =
-                engine_core::parse_select("select name from user where nice = true && age = 100")
+                engine_core::parse_select("select name from User where nice = true && age = 100")
                     .expect("parse_select");
 
             assert_eq!(select(&db, select_sql), Ok(expected));
@@ -304,7 +304,7 @@ mod testing {
                 serde_json::from_str("{\"age\":27,\"name\":\"Mr Cat\"}").unwrap(),
             )];
 
-            let (_, select_sql) = engine_core::parse_select("select Cat { age, name } from pet")
+            let (_, select_sql) = engine_core::parse_select("select Cat { age, name } from Pet")
                 .expect("parse_select");
 
             assert_eq!(select(&db, select_sql), Ok(expected));
@@ -331,7 +331,7 @@ mod testing {
             ];
 
             let (_, select_sql) =
-                engine_core::parse_select("select age, name from pet").expect("parse_select");
+                engine_core::parse_select("select age, name from Pet").expect("parse_select");
 
             assert_eq!(select(&db, select_sql), Ok(expected));
         }
@@ -359,7 +359,7 @@ mod testing {
             ];
 
             let (_, select_sql) =
-                engine_core::parse_select("select age, name, likes_stick from pet")
+                engine_core::parse_select("select age, name, likes_stick from Pet")
                     .expect("parse select");
 
             assert_eq!(select(&db, select_sql), Ok(expected));

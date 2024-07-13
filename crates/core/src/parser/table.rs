@@ -80,11 +80,11 @@ mod tests {
         columns.insert(ColumnName("likes_dogs".to_string()), ScalarType::Bool);
 
         assert_eq!(
-            parse_table("type user { id: Int, name: String, likes_dogs: Bool }"),
+            parse_table("type User { id: Int, name: String, likes_dogs: Bool }"),
             Ok((
                 "",
                 Table {
-                    name: TableName("user".to_string()),
+                    name: TableName("User".to_string()),
                     columns: Columns::SingleConstructor(columns)
                 }
             ))
@@ -107,12 +107,12 @@ mod tests {
 
         assert_eq!(
             parse_table(
-                "type color { RGB { red: Int, green: Int, blue: Int }, Greyscale { value: Int } }"
+                "type Color { RGB { red: Int, green: Int, blue: Int }, Greyscale { value: Int } }"
             ),
             Ok((
                 "",
                 Table {
-                    name: TableName("color".to_string()),
+                    name: TableName("Color".to_string()),
                     columns: Columns::MultipleConstructors(constructors)
                 }
             ))
