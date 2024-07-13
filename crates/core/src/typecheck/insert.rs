@@ -1,8 +1,7 @@
 use crate::typecheck::{column::typecheck_column, scalar::typecheck_scalar};
 use crate::types::{
-    ColumnName, Columns, Insert, InsertValue, ScalarType, Table, TableName, TypeError,
+    ColumnName, Columns, Insert, InsertValue, ScalarType, ScalarValue, Table, TableName, TypeError,
 };
-use serde_json::Value;
 use std::collections::BTreeMap;
 
 fn get_table<'a>(
@@ -51,7 +50,7 @@ pub fn typecheck_insert(
 fn check_values_against_column(
     table: &Table,
     columns: &BTreeMap<ColumnName, ScalarType>,
-    values: &BTreeMap<ColumnName, Value>,
+    values: &BTreeMap<ColumnName, ScalarValue>,
 ) -> Result<(), TypeError> {
     for column_name in columns.keys() {
         let (_, column_type) = typecheck_column(table, column_name)?;
@@ -70,10 +69,9 @@ fn check_values_against_column(
 mod tests {
     use super::{typecheck_insert, BTreeMap};
     use crate::types::{
-        ColumnName, Columns, Constructor, Insert, InsertValue, ScalarType, Table, TableName, Type,
-        TypeError,
+        ColumnName, Columns, Constructor, Insert, InsertValue, ScalarType, ScalarValue, Table,
+        TableName, Type, TypeError,
     };
-    use serde_json::Value;
 
     #[test]
     fn table_doesnt_exist() {
@@ -140,7 +138,7 @@ mod tests {
 
         insert_value.insert(
             ColumnName("age".to_string()),
-            Value::String("dog".to_string()),
+            ScalarValue::String("dog".to_string()),
         );
 
         let insert = Insert {
@@ -155,7 +153,7 @@ mod tests {
             typecheck_insert(&tables, &insert),
             Err(TypeError::TypeMismatchInInput {
                 expected_type: Type::ScalarType(ScalarType::Int),
-                input_value: Value::String("dog".to_string())
+                input_value: ScalarValue::String("dog".to_string())
             })
         );
     }

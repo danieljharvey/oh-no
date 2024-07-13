@@ -1,5 +1,4 @@
 use serde_derive::{Deserialize, Serialize};
-use serde_json::Value;
 use std::collections::BTreeMap;
 use std::fmt;
 use std::fmt::Display;
@@ -53,12 +52,12 @@ pub enum SelectColumns {
 #[serde(untagged)]
 pub enum InsertValue {
     Single {
-        values: BTreeMap<ColumnName, Value>,
+        values: BTreeMap<ColumnName, ScalarValue>,
     },
     Multiple {
         #[serde(rename = "_type")]
         constructor: Constructor,
-        values: BTreeMap<ColumnName, Value>,
+        values: BTreeMap<ColumnName, ScalarValue>,
     },
 }
 
@@ -144,13 +143,13 @@ pub enum TypeError {
         table_name: TableName,
         column_name: ColumnName,
     },
-    #[error("expected type {expected_type:?} but found value {input_value:}")]
+    #[error("expected type {expected_type:?} but found value {input_value:?}")]
     TypeMismatchInInput {
         expected_type: Type,
-        input_value: Value,
+        input_value: ScalarValue,
     },
-    #[error("unknown scalar type for value {value:}")]
-    UnknownScalarTypeForValue { value: Value },
+    #[error("unknown scalar type for value {value:?}")]
+    UnknownScalarTypeForValue { value: ScalarValue },
     #[error("constructor not specified when inserting into table {table:}")]
     ConstructorNotSpecified { table: TableName },
     #[error("constructor specified when inserting into table {table:} but it is not required")]
@@ -166,6 +165,7 @@ pub enum ScalarType {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ScalarValue {
+    Null,
     String(String),
     Bool(bool),
     Int(i32),
@@ -177,13 +177,13 @@ pub enum Type {
     ScalarType(ScalarType),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Table {
     pub name: TableName,
     pub columns: Columns,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum Columns {
     SingleConstructor(BTreeMap<ColumnName, ScalarType>),
     MultipleConstructors(BTreeMap<Constructor, BTreeMap<ColumnName, ScalarType>>),

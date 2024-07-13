@@ -1,51 +1,11 @@
 use super::data::lookup_table;
+use super::helpers::{add_constructor_to_expression, apply_expression, is_true, matches_prefix};
 use engine_core::typecheck_select;
-use engine_core::{
-    and, equals, ColumnName, Comparison, Expression, Function, ScalarValue, Select, SelectColumns,
-    SelectError,
-};
+use engine_core::{Select, SelectError};
 use rocksdb::DB;
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::str::FromStr;
-
-pub fn empty_where() -> Expression {
-    Expression::Bool(true)
-}
-
-fn matches_prefix(prefix: &str, key: &[u8]) -> bool {
-    let key_string = std::str::from_utf8(key).unwrap();
-    let prefix_len = prefix.len();
-    // only do check if key is longer than prefix
-    if prefix_len < key_string.len() {
-        let key_start = &key_string.get(0..prefix.len()).unwrap();
-        key_start == &prefix
-    } else {
-        false
-    }
-}
-
-fn add_constructor_to_expression(
-    columns: SelectColumns,
-    r#where: Expression,
-) -> (Expression, Vec<ColumnName>) {
-    match columns {
-        SelectColumns::SelectColumns { columns } => (r#where, columns),
-        SelectColumns::SelectConstructor {
-            constructor,
-            columns,
-        } => (
-            and(
-                r#where,
-                equals(
-                    ColumnName("_type".to_string()),
-                    ScalarValue::String(constructor.to_string()),
-                ),
-            ),
-            columns,
-        ),
-    }
-}
 
 pub fn select(db: &DB, select: Select) -> Result<Vec<(usize, Value)>, SelectError> {
     let table = match lookup_table(db, &select.table) {
@@ -100,58 +60,15 @@ pub fn select(db: &DB, select: Select) -> Result<Vec<(usize, Value)>, SelectErro
     Ok(results)
 }
 
-fn is_true(expression: &Expression) -> bool {
-    matches!(expression, Expression::Bool(true))
-}
-
-fn bool_expr(bool: bool) -> Expression {
-    Expression::Bool(bool)
-}
-
-fn to_serde_json(scalar_value: &ScalarValue) -> serde_json::Value {
-    match scalar_value {
-        ScalarValue::Int(i) => serde_json::Value::Number(serde_json::Number::from(*i)),
-        ScalarValue::Bool(b) => serde_json::Value::Bool(*b),
-        ScalarValue::String(s) => serde_json::Value::String(s.clone()),
-    }
-}
-
-// given a row and an expression, evaluate it
-fn apply_expression(result: &serde_json::Value, expression: &Expression) -> Expression {
-    match expression {
-        Expression::Comparison(Comparison { column, value }) => {
-            let json_object = result.as_object().unwrap();
-            let column_value = json_object.get(&column.to_string()).unwrap();
-            let json_value = to_serde_json(value);
-            bool_expr(*column_value == json_value)
-        }
-        Expression::BinaryFunction {
-            function,
-            expr_left,
-            expr_right,
-        } => match function {
-            Function::And => {
-                if is_true(&apply_expression(result, expr_left)) {
-                    apply_expression(result, expr_right)
-                } else {
-                    bool_expr(false)
-                }
-            }
-        },
-        Expression::Bool(bool) => Expression::Bool(*bool),
-    }
-}
-
 #[cfg(test)]
 mod testing {
     use super::select;
     use crate::data::insert_table;
     use engine_core::{
-        ColumnName, Columns, Constructor, Insert, InsertValue, ScalarType, SelectError, Table,
-        TableName, TypeError,
+        ColumnName, Constructor, Insert, InsertValue, ScalarValue, SelectError, TableName,
+        TypeError,
     };
     use rocksdb::{Options, DB};
-    use serde_json::Value;
     use std::collections::BTreeMap;
 
     fn insert_test_data(db: &DB) -> anyhow::Result<()> {
@@ -160,30 +77,15 @@ mod testing {
     }
 
     fn insert_pet_data(db: &DB) -> anyhow::Result<()> {
-        let mut pet_columns = BTreeMap::new();
-        pet_columns.insert(ColumnName("age".to_string()), ScalarType::Int);
-        pet_columns.insert(ColumnName("name".to_string()), ScalarType::String);
+        let (_,table_sql) = engine_core::parse_table("type pet { Cat { age: Int, name: String }, Dog { age: Int, name: String, likes_stick: Bool } }").expect("parse_table");
 
-        let mut constructors = BTreeMap::new();
-        constructors.insert(Constructor("Cat".to_string()), pet_columns.clone());
-
-        pet_columns.insert(ColumnName("likes_stick".to_string()), ScalarType::Bool);
-
-        constructors.insert(Constructor("Dog".to_string()), pet_columns);
-
-        insert_table(
-            db,
-            &Table {
-                name: TableName("pet".to_string()),
-                columns: Columns::MultipleConstructors(constructors),
-            },
-        );
+        insert_table(db, &table_sql);
 
         let mut cat_row = BTreeMap::new();
-        cat_row.insert(ColumnName("age".to_string()), Value::Number(27.into()));
+        cat_row.insert(ColumnName("age".to_string()), ScalarValue::Int(27));
         cat_row.insert(
             ColumnName("name".to_string()),
-            Value::String("Mr Cat".into()),
+            ScalarValue::String("Mr Cat".into()),
         );
 
         let _ = crate::insert::insert(
@@ -199,12 +101,15 @@ mod testing {
         )?;
 
         let mut dog_row = BTreeMap::new();
-        dog_row.insert(ColumnName("age".to_string()), Value::Number(21.into()));
+        dog_row.insert(ColumnName("age".to_string()), ScalarValue::Int(21));
         dog_row.insert(
             ColumnName("name".to_string()),
-            Value::String("Mr Dog".into()),
+            ScalarValue::String("Mr Dog".into()),
         );
-        dog_row.insert(ColumnName("likes_stick".to_string()), Value::Bool(true));
+        dog_row.insert(
+            ColumnName("likes_stick".to_string()),
+            ScalarValue::Bool(true),
+        );
 
         let _ = crate::insert::insert(
             db,
@@ -222,23 +127,24 @@ mod testing {
     }
 
     fn insert_user_data(db: &DB) -> anyhow::Result<()> {
-        let mut user_columns = BTreeMap::new();
-        user_columns.insert(ColumnName("age".to_string()), ScalarType::Int);
-        user_columns.insert(ColumnName("nice".to_string()), ScalarType::Bool);
-        user_columns.insert(ColumnName("name".to_string()), ScalarType::String);
+        let (_, table_sql) =
+            engine_core::parse_table("type user { age: Int, nice: Bool, name: String }")
+                .expect("parse_table");
 
-        insert_table(
-            db,
-            &Table {
-                name: TableName("user".to_string()),
-                columns: Columns::SingleConstructor(user_columns),
-            },
-        );
+        insert_table(db, &table_sql);
 
+        // todo: parser
+        // insert into user [
+        //   {age: 27, nice: false, name: "Egg"},
+        //   {age: 100, nice: true, name: "Horse"}
+        // ]
         let mut user_row_1 = BTreeMap::new();
-        user_row_1.insert(ColumnName("age".to_string()), Value::Number(27.into()));
-        user_row_1.insert(ColumnName("nice".to_string()), Value::Bool(false));
-        user_row_1.insert(ColumnName("name".to_string()), Value::String("Egg".into()));
+        user_row_1.insert(ColumnName("age".to_string()), ScalarValue::Int(27));
+        user_row_1.insert(ColumnName("nice".to_string()), ScalarValue::Bool(false));
+        user_row_1.insert(
+            ColumnName("name".to_string()),
+            ScalarValue::String("Egg".into()),
+        );
 
         let _ = crate::insert::insert(
             db,
@@ -250,11 +156,11 @@ mod testing {
         )?;
 
         let mut user_row_2 = BTreeMap::new();
-        user_row_2.insert(ColumnName("age".to_string()), Value::Number(100.into()));
-        user_row_2.insert(ColumnName("nice".to_string()), Value::Bool(true));
+        user_row_2.insert(ColumnName("age".to_string()), ScalarValue::Int(100));
+        user_row_2.insert(ColumnName("nice".to_string()), ScalarValue::Bool(true));
         user_row_2.insert(
             ColumnName("name".to_string()),
-            Value::String("Horse".into()),
+            ScalarValue::String("Horse".into()),
         );
 
         let _ = crate::insert::insert(
@@ -267,9 +173,12 @@ mod testing {
         )?;
 
         let mut user_row_3 = BTreeMap::new();
-        user_row_3.insert(ColumnName("age".to_string()), Value::Number(46.into()));
-        user_row_3.insert(ColumnName("nice".to_string()), Value::Bool(false));
-        user_row_3.insert(ColumnName("name".to_string()), Value::String("Log".into()));
+        user_row_3.insert(ColumnName("age".to_string()), ScalarValue::Int(46));
+        user_row_3.insert(ColumnName("nice".to_string()), ScalarValue::Bool(false));
+        user_row_3.insert(
+            ColumnName("name".to_string()),
+            ScalarValue::String("Log".into()),
+        );
 
         let _ = crate::insert::insert(
             db,
