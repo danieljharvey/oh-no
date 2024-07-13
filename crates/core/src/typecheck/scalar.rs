@@ -1,16 +1,15 @@
-use crate::types::{ScalarType, Type, TypeError};
-use serde_json::Value;
+use crate::types::{ScalarType, ScalarValue, Type, TypeError};
 
-pub fn typecheck_scalar(value: &Value, expected_type: &Type) -> Result<(), TypeError> {
+pub fn typecheck_scalar(value: &ScalarValue, expected_type: &Type) -> Result<(), TypeError> {
     match (value, expected_type) {
-        (Value::Null, Type::Optional(_)) => Ok(()),
-        (Value::Number(num), _)
-            if num.as_i64().is_some() && *inner_scalar_type(expected_type) == ScalarType::Int =>
-        {
+        (ScalarValue::Null, Type::Optional(_)) => Ok(()),
+        (ScalarValue::Int(_), _) if *inner_scalar_type(expected_type) == ScalarType::Int => Ok(()),
+        (ScalarValue::String(_), _) if *inner_scalar_type(expected_type) == ScalarType::String => {
             Ok(())
         }
-        (Value::String(_), _) if *inner_scalar_type(expected_type) == ScalarType::String => Ok(()),
-        (Value::Bool(_), _) if *inner_scalar_type(expected_type) == ScalarType::Bool => Ok(()),
+        (ScalarValue::Bool(_), _) if *inner_scalar_type(expected_type) == ScalarType::Bool => {
+            Ok(())
+        }
         _ => Err(TypeError::TypeMismatchInInput {
             expected_type: expected_type.clone(),
             input_value: value.clone(),
@@ -27,19 +26,18 @@ fn inner_scalar_type(expected_type: &Type) -> &ScalarType {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{ScalarType, Type};
-    use serde_json::Value;
+    use crate::types::{ScalarType, ScalarValue, Type};
 
     #[test]
     fn int_is_int() {
-        super::typecheck_scalar(&Value::Number(1.into()), &Type::ScalarType(ScalarType::Int))
+        super::typecheck_scalar(&ScalarValue::Int(1), &Type::ScalarType(ScalarType::Int))
             .expect("should be Right");
     }
 
     #[test]
     fn maybe_int_accepts_null() {
         super::typecheck_scalar(
-            &Value::Null,
+            &ScalarValue::Null,
             &Type::Optional(Box::new(Type::ScalarType(ScalarType::Int))),
         )
         .expect("should be Right");
