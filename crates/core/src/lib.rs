@@ -1,7 +1,8 @@
-pub mod parser;
+mod parser;
 mod typecheck;
 mod types;
 
+pub use parser::parse_select;
 pub use typecheck::{
     insert::typecheck_insert,
     select::{empty_where, typecheck_select},

@@ -43,7 +43,7 @@ fn select_constructor(input: &str) -> IResult<&str, SelectColumns> {
     )(input)
 }
 
-pub fn select(input: &str) -> IResult<&str, Select> {
+pub fn parse_select(input: &str) -> IResult<&str, Select> {
     map(
         pair(
             preceded(ws(tag("select ")), select_columns),
@@ -69,7 +69,7 @@ fn r#where(input: &str) -> IResult<&str, Expression> {
 
 #[cfg(test)]
 mod tests {
-    use super::{select, select_columns};
+    use super::{parse_select, select_columns};
     use crate::{
         empty_where, ColumnName, Comparison, Constructor, Expression, ScalarValue, Select,
         SelectColumns, TableName,
@@ -77,7 +77,7 @@ mod tests {
     #[test]
     fn test_select() {
         assert_eq!(
-            select("select id, name from users"),
+            parse_select("select id, name from users"),
             Ok((
                 "",
                 Select {
@@ -90,7 +90,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            select("select id, name from users where user_id=100"),
+            parse_select("select id, name from users where user_id=100"),
             Ok((
                 "",
                 Select {

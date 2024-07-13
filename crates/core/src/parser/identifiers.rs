@@ -1,16 +1,13 @@
-use crate::types::{
-    ColumnName, Constructor,
-    TableName,
-};
+use crate::types::{ColumnName, Constructor, TableName};
 
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while1},
     character::complete::{alpha1, alphanumeric1, multispace0},
+    combinator::map,
     combinator::recognize,
-    combinator::{map},
     error::ParseError,
-    multi::{many0_count},
+    multi::many0_count,
     sequence::{pair, preceded},
     IResult,
 };

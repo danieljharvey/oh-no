@@ -147,8 +147,8 @@ mod testing {
     use crate::data::insert_table;
     use crate::query::select;
     use engine_core::{
-        and, empty_where, equals, ColumnName, Columns, Constructor, Insert, InsertValue,
-        ScalarType, ScalarValue, Select, SelectColumns, SelectError, Table, TableName, TypeError,
+        ColumnName, Columns, Constructor, Insert, InsertValue, ScalarType, SelectError, Table,
+        TableName, TypeError,
     };
     use rocksdb::{Options, DB};
     use serde_json::Value;
@@ -165,11 +165,11 @@ mod testing {
         pet_columns.insert(ColumnName("name".to_string()), ScalarType::String);
 
         let mut constructors = BTreeMap::new();
-        constructors.insert(Constructor("cat".to_string()), pet_columns.clone());
+        constructors.insert(Constructor("Cat".to_string()), pet_columns.clone());
 
         pet_columns.insert(ColumnName("likes_stick".to_string()), ScalarType::Bool);
 
-        constructors.insert(Constructor("dog".to_string()), pet_columns);
+        constructors.insert(Constructor("Dog".to_string()), pet_columns);
 
         insert_table(
             db,
@@ -192,7 +192,7 @@ mod testing {
                 table: TableName("pet".to_string()),
                 key: 1,
                 value: InsertValue::Multiple {
-                    constructor: Constructor("cat".into()),
+                    constructor: Constructor("Cat".into()),
                     values: cat_row,
                 },
             },
@@ -212,7 +212,7 @@ mod testing {
                 table: TableName("pet".to_string()),
                 key: 2,
                 value: InsertValue::Multiple {
-                    constructor: Constructor("dog".into()),
+                    constructor: Constructor("Dog".into()),
                     values: dog_row,
                 },
             },
@@ -290,17 +290,11 @@ mod testing {
             let db = DB::open_default(path.clone()).unwrap();
             insert_test_data(&db).expect("insert test data failure");
 
+            let (_, select_sql) =
+                engine_core::parse_select("select name from missing").expect("parse_select");
+
             assert_eq!(
-                select(
-                    &db,
-                    Select {
-                        table: TableName("missing".to_string()),
-                        columns: SelectColumns::SelectColumns {
-                            columns: vec![ColumnName("name".to_string())]
-                        },
-                        r#where: empty_where()
-                    }
-                ),
+                select(&db, select_sql),
                 Err(SelectError::TableNotFound(TableName("missing".to_string())))
             );
         }
@@ -314,17 +308,11 @@ mod testing {
             let db = DB::open_default(path.clone()).unwrap();
             insert_test_data(&db).expect("insert test data failure");
 
+            let (_, select_sql) =
+                engine_core::parse_select("select missing from user").expect("parse_select");
+
             assert_eq!(
-                select(
-                    &db,
-                    Select {
-                        table: TableName("user".to_string()),
-                        columns: SelectColumns::SelectColumns {
-                            columns: vec![ColumnName("missing".to_string())]
-                        },
-                        r#where: empty_where()
-                    }
-                ),
+                select(&db, select_sql),
                 Err(SelectError::TypeError(TypeError::ColumnNotFound {
                     column_name: ColumnName("missing".to_string()),
                     table_name: TableName("user".to_string())
@@ -341,15 +329,12 @@ mod testing {
             let db = DB::open_default(path.clone()).unwrap();
             insert_test_data(&db).expect("insert test data failure");
 
+            let (_, select_sql) =
+                engine_core::parse_select("select name from user where missing = true")
+                    .expect("parse_select");
+
             assert_eq!(
-                select(
-                    &db,
-                    Select {
-                        table: TableName("user".to_string()),
-                        columns: SelectColumns::SelectColumns { columns: vec![] },
-                        r#where: equals(ColumnName("missing".to_string()), ScalarValue::Bool(true))
-                    }
-                ),
+                select(&db, select_sql),
                 Err(SelectError::TypeError(TypeError::ColumnNotFound {
                     column_name: ColumnName("missing".to_string()),
                     table_name: TableName("user".to_string())
@@ -372,19 +357,10 @@ mod testing {
                 (3, serde_json::from_str("{\"name\":\"Log\"}").unwrap()),
             ];
 
-            assert_eq!(
-                select(
-                    &db,
-                    Select {
-                        table: TableName("user".to_string()),
-                        columns: SelectColumns::SelectColumns {
-                            columns: vec![ColumnName("name".to_string())]
-                        },
-                        r#where: empty_where()
-                    }
-                ),
-                Ok(expected)
-            );
+            let (_, select_sql) =
+                engine_core::parse_select("select name from user").expect("parse_select");
+
+            assert_eq!(select(&db, select_sql), Ok(expected));
         }
         let _ = DB::destroy(&Options::default(), path);
     }
@@ -398,22 +374,11 @@ mod testing {
 
             let expected = vec![(2, serde_json::from_str("{\"name\":\"Horse\"}").unwrap())];
 
-            assert_eq!(
-                select(
-                    &db,
-                    Select {
-                        table: TableName("user".to_string()),
-                        columns: SelectColumns::SelectColumns {
-                            columns: vec![ColumnName("name".to_string())]
-                        },
-                        r#where: and(
-                            equals(ColumnName("nice".to_string()), ScalarValue::Bool(true)),
-                            equals(ColumnName("age".to_string()), ScalarValue::Int(100))
-                        )
-                    }
-                ),
-                Ok(expected)
-            );
+            let (_, select_sql) =
+                engine_core::parse_select("select name from user where nice = true && age = 100")
+                    .expect("parse_select");
+
+            assert_eq!(select(&db, select_sql), Ok(expected));
         }
         let _ = DB::destroy(&Options::default(), path);
     }
@@ -430,23 +395,10 @@ mod testing {
                 serde_json::from_str("{\"age\":27,\"name\":\"Mr Cat\"}").unwrap(),
             )];
 
-            assert_eq!(
-                select(
-                    &db,
-                    Select {
-                        table: TableName("pet".to_string()),
-                        columns: SelectColumns::SelectConstructor {
-                            constructor: Constructor("cat".to_string()),
-                            columns: vec![
-                                ColumnName("age".to_string()),
-                                ColumnName("name".to_string())
-                            ]
-                        },
-                        r#where: empty_where()
-                    }
-                ),
-                Ok(expected)
-            );
+            let (_, select_sql) = engine_core::parse_select("select Cat { age, name } from pet")
+                .expect("parse_select");
+
+            assert_eq!(select(&db, select_sql), Ok(expected));
         }
         let _ = DB::destroy(&Options::default(), path);
     }
@@ -469,22 +421,10 @@ mod testing {
                 ),
             ];
 
-            assert_eq!(
-                select(
-                    &db,
-                    Select {
-                        table: TableName("pet".to_string()),
-                        columns: SelectColumns::SelectColumns {
-                            columns: vec![
-                                ColumnName("age".to_string()),
-                                ColumnName("name".to_string())
-                            ]
-                        },
-                        r#where: empty_where()
-                    }
-                ),
-                Ok(expected)
-            );
+            let (_, select_sql) =
+                engine_core::parse_select("select age, name from pet").expect("parse_select");
+
+            assert_eq!(select(&db, select_sql), Ok(expected));
         }
         let _ = DB::destroy(&Options::default(), path);
     }
@@ -509,23 +449,11 @@ mod testing {
                 ),
             ];
 
-            assert_eq!(
-                select(
-                    &db,
-                    Select {
-                        table: TableName("pet".to_string()),
-                        columns: SelectColumns::SelectColumns {
-                            columns: vec![
-                                ColumnName("age".to_string()),
-                                ColumnName("name".to_string()),
-                                ColumnName("likes_stick".to_string())
-                            ]
-                        },
-                        r#where: empty_where()
-                    }
-                ),
-                Ok(expected)
-            );
+            let (_, select_sql) =
+                engine_core::parse_select("select age, name, likes_stick from pet")
+                    .expect("parse select");
+
+            assert_eq!(select(&db, select_sql), Ok(expected));
         }
         let _ = DB::destroy(&Options::default(), path);
     }
