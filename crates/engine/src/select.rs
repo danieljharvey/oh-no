@@ -147,8 +147,7 @@ mod testing {
     use super::select;
     use crate::data::insert_table;
     use engine_core::{
-        ColumnName, Columns, Constructor, Insert, InsertValue, ScalarType, SelectError, Table,
-        TableName, TypeError,
+        ColumnName, Constructor, Insert, InsertValue, SelectError, TableName, TypeError,
     };
     use rocksdb::{Options, DB};
     use serde_json::Value;
@@ -160,24 +159,9 @@ mod testing {
     }
 
     fn insert_pet_data(db: &DB) -> anyhow::Result<()> {
-        let mut pet_columns = BTreeMap::new();
-        pet_columns.insert(ColumnName("age".to_string()), ScalarType::Int);
-        pet_columns.insert(ColumnName("name".to_string()), ScalarType::String);
+        let (_,table_sql) = engine_core::parse_table("type pet { Cat { age: Int, name: String }, Dog { age: Int, name: String, likes_stick: Bool } }").expect("parse_table");
 
-        let mut constructors = BTreeMap::new();
-        constructors.insert(Constructor("Cat".to_string()), pet_columns.clone());
-
-        pet_columns.insert(ColumnName("likes_stick".to_string()), ScalarType::Bool);
-
-        constructors.insert(Constructor("Dog".to_string()), pet_columns);
-
-        insert_table(
-            db,
-            &Table {
-                name: TableName("pet".to_string()),
-                columns: Columns::MultipleConstructors(constructors),
-            },
-        );
+        insert_table(db, &table_sql);
 
         let mut cat_row = BTreeMap::new();
         cat_row.insert(ColumnName("age".to_string()), Value::Number(27.into()));
@@ -222,18 +206,11 @@ mod testing {
     }
 
     fn insert_user_data(db: &DB) -> anyhow::Result<()> {
-        let mut user_columns = BTreeMap::new();
-        user_columns.insert(ColumnName("age".to_string()), ScalarType::Int);
-        user_columns.insert(ColumnName("nice".to_string()), ScalarType::Bool);
-        user_columns.insert(ColumnName("name".to_string()), ScalarType::String);
+        let (_, table_sql) =
+            engine_core::parse_table("type user { age: Int, nice: Bool, name: String }")
+                .expect("parse_table");
 
-        insert_table(
-            db,
-            &Table {
-                name: TableName("user".to_string()),
-                columns: Columns::SingleConstructor(user_columns),
-            },
-        );
+        insert_table(db, &table_sql);
 
         let mut user_row_1 = BTreeMap::new();
         user_row_1.insert(ColumnName("age".to_string()), Value::Number(27.into()));

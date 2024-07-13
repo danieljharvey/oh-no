@@ -177,13 +177,13 @@ pub enum Type {
     ScalarType(ScalarType),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Table {
     pub name: TableName,
     pub columns: Columns,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum Columns {
     SingleConstructor(BTreeMap<ColumnName, ScalarType>),
     MultipleConstructors(BTreeMap<Constructor, BTreeMap<ColumnName, ScalarType>>),

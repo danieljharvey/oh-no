@@ -7,7 +7,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     combinator::{map, opt},
-    sequence::{pair, preceded, terminated},
+    sequence::{delimited, pair, preceded},
     IResult,
 };
 
@@ -28,12 +28,10 @@ fn select_constructor(input: &str) -> IResult<&str, SelectColumns> {
     map(
         pair(
             constructor,
-            preceded(
+            delimited(
                 ws(tag("{")),
-                terminated(
-                    nom::multi::separated_list1(ws(tag(",")), column_name),
-                    ws(tag("}")),
-                ),
+                nom::multi::separated_list1(ws(tag(",")), column_name),
+                ws(tag("}")),
             ),
         ),
         |(constructor, columns)| SelectColumns::SelectConstructor {
